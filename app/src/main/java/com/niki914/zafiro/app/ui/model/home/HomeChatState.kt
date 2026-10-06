@@ -5,6 +5,7 @@ import com.niki914.zafiro.api.model.ApprovalRequest
 import com.niki914.zafiro.app.conversation.ConversationRecord
 import com.niki914.zafiro.app.conversation.ForkKind
 import com.niki914.zafiro.app.conversation.ForkResult
+import com.niki914.zafiro.app.ui.model.SavedConfigSummary
 import com.niki914.zafiro.chat.LlmErrorCode
 
 internal interface HomeConversationStore {
@@ -137,7 +138,24 @@ data class HomeChatUiState(
      * [HomeChatIntent.ResolveApproval]，结算后归 null。
      */
     val pendingApproval: ApprovalRequest? = null,
+    /**
+     * 可切换的 LLM 接入配置（输入栏模型胶囊的数据源）。
+     * 配置为全局单例，不属于任何会话——切换影响所有对话。
+     */
+    val llmConfigs: List<SavedConfigSummary> = emptyList(),
+    /** 当前生效配置 id；null = 未配置或尚未加载。 */
+    val activeConfigId: String? = null,
+    /** 非空时应弹出模型切换单。 */
+    val showConfigSheet: Boolean = false,
 )
+
+/**
+ * 胶囊显示文案：当前生效配置的模型名。空串/无生效配置 → null（胶囊不渲染）。
+ */
+val HomeChatUiState.activeModelLabel: String?
+    get() = llmConfigs.firstOrNull { it.id == activeConfigId }
+        ?.modelId
+        ?.takeIf(String::isNotBlank)
 
 /**
  * 会话切换时的统一瞬态清理：三组展开态 + 操作行 + active thinking 指针 + 自动展开记录全清，
@@ -193,6 +211,15 @@ sealed interface HomeChatIntent {
 
     /** 前台对话框的裁决回灌；由 [com.niki914.zafiro.api.Approver] 实现侧等待。 */
     data class ResolveApproval(val decision: ApprovalDecision) : HomeChatIntent
+
+    /**
+     * 重读配置列表。设置页改配置不通知本 VM，故进页/切回首页时补一次
+     * （首页离开导航栈时内容被销毁，回来即重新组合）。
+     */
+    data object RefreshConfigs : HomeChatIntent
+    data object ShowConfigSheet : HomeChatIntent
+    data object HideConfigSheet : HomeChatIntent
+    data class SelectConfig(val configId: String) : HomeChatIntent
 }
 
 /**

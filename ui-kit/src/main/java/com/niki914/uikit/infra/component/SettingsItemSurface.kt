@@ -35,6 +35,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
+/**
+ * 行内次级点击目标：命中区（窗口坐标）+ 回调。
+ *
+ * 用「命中区 + 手工分发」而不是给子元素挂 clickable 是有意的：整行按压变色要统一，
+ * 子级 clickable 会让按下态割裂出局部 ripple（见下方 pointerInput 内的说明）。
+ */
+data class SettingsItemTrailingAction(
+    val boundsInWindow: Rect,
+    val onClick: () -> Unit,
+)
+
 @Composable
 fun SettingsItemSurface(
     modifier: Modifier = Modifier,
@@ -47,19 +58,17 @@ fun SettingsItemSurface(
     shape: Shape = RectangleShape,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
-    /** 行内次级点击目标（如尾随「编辑」文字）的窗口坐标，命中时优先于 onClick。 */
-    onTrailingActionClick: (() -> Unit)? = null,
-    trailingActionBoundsInWindow: Rect? = null,
+    /** 次级点击目标（如尾随「复制」「编辑」），按顺序命中的第一个优先于 onClick。 */
+    trailingActions: List<SettingsItemTrailingAction> = emptyList(),
     content: @Composable RowScope.() -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
     val currentOnClick by rememberUpdatedState(onClick)
     val currentOnLongClick by rememberUpdatedState(onLongClick)
-    val currentOnTrailingActionClick by rememberUpdatedState(onTrailingActionClick)
-    val currentTrailingBounds by rememberUpdatedState(trailingActionBoundsInWindow)
+    val currentTrailingActions by rememberUpdatedState(trailingActions)
     val isInteractive = enabled && (
         currentOnClick != null ||
-            currentOnTrailingActionClick != null ||
+            currentTrailingActions.isNotEmpty() ||
             currentOnLongClick != null
     )
 
@@ -89,7 +98,7 @@ fun SettingsItemSurface(
     val interactiveModifier = if (isInteractive) {
         Modifier
             .onGloballyPositioned { surfaceOriginInWindow = it.positionInWindow() }
-            .pointerInput(currentOnClick, currentOnLongClick, currentOnTrailingActionClick, hapticFeedbackType) {
+            .pointerInput(currentOnClick, currentOnLongClick, currentTrailingActions, hapticFeedbackType) {
                 detectTapGestures(
                     onPress = {
                         backgroundColor = pressedColor
@@ -101,16 +110,12 @@ fun SettingsItemSurface(
                     },
                     onTap = { offset ->
                         hapticFeedbackType?.let(haptics::performHapticFeedback)
-                        val bounds = currentTrailingBounds
-                        val trailing = currentOnTrailingActionClick
                         // 单一 pointerInput 内做命中分发，按压整行变色，不出现局部 ripple 割裂
-                        if (trailing != null && bounds != null &&
-                            bounds.contains(offset + surfaceOriginInWindow)
-                        ) {
-                            trailing()
-                        } else {
-                            currentOnClick?.invoke()
+                        val pointInWindow = offset + surfaceOriginInWindow
+                        val hit = currentTrailingActions.firstOrNull {
+                            it.boundsInWindow.contains(pointInWindow)
                         }
+                        if (hit != null) hit.onClick() else currentOnClick?.invoke()
                     },
                     onLongPress = if (currentOnLongClick != null) {
                         {

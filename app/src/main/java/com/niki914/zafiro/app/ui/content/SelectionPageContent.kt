@@ -128,14 +128,15 @@ internal fun SelectionOptionRow(
     )
 }
 
-/** 分组卡片形式的选项列表：组内 divider 分隔。 */
+/** 分组卡片形式的选项列表：组内 divider 分隔；[title] 非空时卡片上方带章节标题。 */
 @Composable
 internal fun SelectionGroupCard(
     options: List<SelectionOption>,
     isDarkTheme: Boolean,
     modifier: Modifier = Modifier,
+    title: String? = null,
 ) {
-    SettingsGroupCard(modifier = modifier) {
+    SettingsGroupCard(modifier = modifier, title = title) {
         options.forEachIndexed { index, option ->
             SelectionOptionRow(option, isDarkTheme)
             if (index != options.lastIndex) {

@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -36,6 +37,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -43,12 +45,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +67,11 @@ import androidx.compose.ui.zIndex
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.niki914.uikit.base.LocalAppDarkTheme
+import com.niki914.uikit.base.skin.LocalSkinBackdrop
+import com.niki914.uikit.base.skin.LocalSkinImageLoader
+import com.niki914.uikit.base.skin.SkinBackdrop
+import com.niki914.uikit.base.skin.SkinImageFit
+import com.niki914.uikit.base.skin.SkinImageSpec
 import com.niki914.uikit.infra.nav.TitleBarScrollState
 import kotlinx.coroutines.delay
 
@@ -145,6 +157,11 @@ fun LiquidScreen(
         modifier
             .fillMaxSize(),
     ) {
+        // Layer 0: 皮肤背景装饰。必须画在所有内容之下——材质表面的半透明度
+        // （fieldSurfaceAlpha 等）是把它透出来的唯一途径，画到上层就白做了。
+        // 顶栏的 chromeBackdrop 采样的是 Layer 2（背景条自身），不受本层影响。
+        SkinBackdropLayer(LocalSkinBackdrop.current)
+
         // Layer 1: page content.
         CompositionLocalProvider(
             LocalLiquidScreenContentContext provides LiquidScreenContentContext(
@@ -362,5 +379,72 @@ fun LiquidScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * 皮肤背景装饰层（层次 3）。无装饰时不组合任何内容——不占图层、不改变原观感。
+ *
+ * 渐变由**当前配色派生**而非皮肤自带色值：皮肤与配色是正交轴，
+ * 背景写死颜色会让「换主题色」看起来没生效。
+ */
+@Composable
+private fun SkinBackdropLayer(backdrop: SkinBackdrop) {
+    when (backdrop) {
+        SkinBackdrop.None -> Unit
+
+        is SkinBackdrop.ThemedGradient -> {
+            val scheme = MaterialTheme.colorScheme
+            // 混到不透明再画：用 alpha 叠会让 window 底色透出来，与「页面自身不画背景」
+            // 的约定耦合，换主题时容易出现脏底
+            val bottom = lerp(scheme.surface, scheme.primaryContainer, backdrop.intensity)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(listOf(scheme.surface, bottom))),
+            )
+        }
+
+        is SkinBackdrop.Image -> SkinImageLayer(backdrop.spec)
+    }
+}
+
+/**
+ * 用户自选背景图。
+ *
+ * 按「屏幕最大边长」降采样后解码：全屏原图直接解码会一次吃掉几十 MB。
+ * 拿不到加载器（Preview 等）或图片已被外部删掉时**静默退化成无装饰**——
+ * 不能崩，也不能给用户留一块白。
+ */
+@Composable
+private fun SkinImageLayer(spec: SkinImageSpec) {
+    val loader = LocalSkinImageLoader.current ?: return
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val targetPx = with(density) {
+        maxOf(configuration.screenWidthDp, configuration.screenHeightDp).dp.roundToPx()
+    }
+    val bitmap by produceState<ImageBitmap?>(initialValue = null, spec.path, targetPx) {
+        value = loader.load(spec.path, targetPx)
+    }
+    val image = bitmap ?: return
+
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            bitmap = image,
+            contentDescription = null,
+            contentScale = when (spec.fit) {
+                SkinImageFit.Cover -> ContentScale.Crop
+                SkinImageFit.Contain -> ContentScale.Fit
+                SkinImageFit.Stretch -> ContentScale.FillBounds
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+        // 压暗层：全屏照片当背景时，没有它保证不了任何文字的可读性
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = spec.scrimAlpha)),
+        )
     }
 }

@@ -100,6 +100,7 @@ import com.niki914.uikit.base.BaseTheme
 import com.niki914.uikit.infra.LiquidDialog
 import com.niki914.uikit.infra.ProvideLiquidScreenContentForPreview
 import com.niki914.uikit.infra.ReportTitleBarCollapsed
+import com.niki914.uikit.infra.component.LiquidChipHeight
 import com.niki914.uikit.infra.component.MaterialTintLiquidButton
 import com.niki914.uikit.infra.component.OptionRow
 import com.niki914.uikit.infra.component.OptionSheet
@@ -120,8 +121,10 @@ import com.niki914.zafiro.app.ui.model.home.HomeChatTurn
 import com.niki914.zafiro.app.ui.model.home.HomeChatUiState
 import com.niki914.zafiro.app.ui.model.home.HomeChatViewModel
 import com.niki914.zafiro.app.ui.model.home.MessageActionsDisplay
+import com.niki914.zafiro.app.ui.model.home.activeModelLabel
 import com.niki914.zafiro.app.ui.model.home.HomeToolState
 import com.niki914.zafiro.app.ui.model.home.HomeToolStatus
+import com.niki914.zafiro.app.ui.model.SavedConfigSummary
 import com.niki914.zafiro.app.ui.model.ToolPresentation
 import com.niki914.zafiro.app.ui.nav.TextTitle
 import com.niki914.zafiro.app.ui.nav.TopBarActionSpec
@@ -148,6 +151,9 @@ private const val ATTACH_LOG_TAG = "niki914_zafiro_Attach"
 
 /** 图片多选的张数上限。远低于系统的 getPickImagesMaxLimit()，取一个够用且不炸上下文的数。 */
 private const val PHOTO_PICK_MAX_ITEMS = 10
+
+/** 模型胶囊与 composer 顶部的间距。附件条同样从胶囊上方 8dp 起算。 */
+private val ModelCapsuleSpacing = 8.dp
 
 @Composable
 fun HomePageContent(
@@ -188,6 +194,11 @@ fun HomePageContent(
             }
         }
     }
+    // 配置页的改动不通知本 VM：首页离开导航栈时内容被销毁，回来即重新组合，
+    // 借此补一次刷新（胶囊文案与切换单列表保持一致）。
+    LaunchedEffect(viewModel) {
+        viewModel.sendIntent(HomeChatIntent.RefreshConfigs)
+    }
     val alwaysShowActions by XRepo.alwaysShowMessageActionsSetting.collectAsState()
     val actionsDisplay = if (alwaysShowActions) {
         MessageActionsDisplay.Always
@@ -217,6 +228,8 @@ fun HomePageContent(
     val composerHeight = remember { mutableStateOf(68.dp) }
     val bottomThresholdPx = with(density) { 24.dp.roundToPx() }
     val lastTurn = uiState.turns.lastOrNull()
+    // 模型胶囊文案；null = 无生效配置，胶囊不渲染（其高度也不参与底部几何）
+    val activeModelLabel = uiState.activeModelLabel
     // 贴底由「滚动位置 + contentPadding」共同决定：composer 几何（ime 动画、多行输入
     // 长高）变化时 padding 跟着变，也必须重新贴底，否则最后一条消息被 composer 遮住
     val bottomContentVersion = remember(
@@ -226,6 +239,7 @@ fun HomePageContent(
         lastTurn?.blocks?.size,
         composerBottomPadding,
         composerHeight.value,
+        activeModelLabel,
     ) {
         listOf(
             uiState.turns.size,
@@ -234,6 +248,7 @@ fun HomePageContent(
             lastTurn?.blocks?.size,
             composerBottomPadding,
             composerHeight.value,
+            activeModelLabel,
         )
     }
     val isAtBottom by remember(listState, bottomThresholdPx) {
@@ -342,6 +357,20 @@ fun HomePageContent(
         composerGap = composerGap,
         composerHeight = composerHeight,
         composerFocusRequester = composerFocusRequester,
+        activeModelLabel = activeModelLabel,
+        llmConfigs = uiState.llmConfigs,
+        activeConfigId = uiState.activeConfigId,
+        showConfigSheet = uiState.showConfigSheet,
+        onModelCapsuleClick = {
+            dismissInputFocus()
+            viewModel.sendIntent(HomeChatIntent.ShowConfigSheet)
+        },
+        onConfigSheetDismiss = {
+            viewModel.sendIntent(HomeChatIntent.HideConfigSheet)
+        },
+        onConfigSelected = { configId ->
+            viewModel.sendIntent(HomeChatIntent.SelectConfig(configId))
+        },
         followBottom = shouldFollowBottomState,
         isAtBottom = isAtBottom,
         onContentTap = dismissInputFocus,
@@ -628,6 +657,13 @@ private fun HomePageContentBody(
     composerGap: Dp,
     composerHeight: MutableState<Dp>,
     composerFocusRequester: FocusRequester,
+    activeModelLabel: String?,
+    llmConfigs: List<SavedConfigSummary>,
+    activeConfigId: String?,
+    showConfigSheet: Boolean,
+    onModelCapsuleClick: () -> Unit,
+    onConfigSheetDismiss: () -> Unit,
+    onConfigSelected: (String) -> Unit,
     followBottom: MutableState<Boolean>,
     isAtBottom: Boolean,
     onContentTap: () -> Unit,
@@ -657,10 +693,14 @@ private fun HomePageContentBody(
     onToggleActionRow: (Long, ActionSource) -> Unit,
 ) {
 
-    // 底部避让总高：composer 底距 + 实测高度 + 统一视觉间距。列表贴底留白与箭头
-    // 位置同源；键盘关闭时（composerBottomPadding == composerGap）即为
-    // composerBottomPadding*2 + composerHeight，composer 顶上方留一个视觉间距
-    val bottomClearance = composerBottomPadding + composerHeight.value + composerGap
+    // 底部避让总高：composer 底距 + 实测高度 + 模型胶囊占位 + 统一视觉间距。列表贴底
+    // 留白与箭头位置同源；键盘关闭时（composerBottomPadding == composerGap）即为
+    // composerBottomPadding*2 + composerHeight，composer 顶上方留一个视觉间距。
+    // 胶囊无生效配置时不渲染，占位归零，几何与加胶囊前完全一致。
+    val modelCapsuleBlock =
+        if (activeModelLabel != null) LiquidChipHeight + ModelCapsuleSpacing else 0.dp
+    val bottomClearance =
+        composerBottomPadding + composerHeight.value + modelCapsuleBlock + composerGap
     val density = LocalDensity.current
 
     // 附件入口：加号 → 选项单（Photos / Camera / File / Folder）。
@@ -804,7 +844,24 @@ private fun HomePageContentBody(
                     .align(Alignment.BottomCenter)
                     .padding(start = 20.dp, end = 20.dp)
                     .fillMaxWidth()
-                    .padding(bottom = composerBottomPadding + composerHeight.value + 8.dp),
+                    .padding(bottom = composerBottomPadding + composerHeight.value + modelCapsuleBlock + 8.dp),
+            )
+        }
+
+        // 模型胶囊：贴在 composer 顶部上方，显示当前生效配置的模型名。
+        // 左对齐到 composer 的内容左沿；声明在 composer 之前，万一重合 composer 更高。
+        if (activeModelLabel != null) {
+            HomeModelCapsule(
+                model = activeModelLabel,
+                onClick = onModelCapsuleClick,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        start = 20.dp,
+                        bottom = composerBottomPadding +
+                                composerHeight.value +
+                                ModelCapsuleSpacing,
+                    ),
             )
         }
 
@@ -832,6 +889,14 @@ private fun HomePageContentBody(
                 .onSizeChanged { size ->
                     composerHeight.value = with(density) { size.height.toDp() }
                 },
+        )
+
+        LlmConfigSheet(
+            visible = showConfigSheet,
+            configs = llmConfigs,
+            activeConfigId = activeConfigId,
+            onDismissRequest = onConfigSheetDismiss,
+            onSelect = onConfigSelected,
         )
 
         // 解除贴底锚定且不在底部时出现：点击恢复跟随并平滑滚回底部
@@ -1504,6 +1569,21 @@ private fun HomePageContentPreview() {
                 onToggleThinking = { _, _ -> },
                 expandedActionTurnId = null,
                 expandedActionSource = null,
+                // 带一份生效配置，让预览里能看到输入栏上方的模型胶囊
+                activeModelLabel = "deepseek-v4-pro",
+                llmConfigs = listOf(
+                    SavedConfigSummary(
+                        id = "cfg-demo",
+                        name = "DeepSeek",
+                        modelId = "deepseek-v4-pro",
+                        isActive = true,
+                    )
+                ),
+                activeConfigId = "cfg-demo",
+                showConfigSheet = false,
+                onModelCapsuleClick = {},
+                onConfigSheetDismiss = {},
+                onConfigSelected = {},
                 onToggleActionRow = { _, _ -> },
             )
         }

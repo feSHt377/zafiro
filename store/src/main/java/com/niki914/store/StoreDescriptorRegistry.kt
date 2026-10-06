@@ -13,6 +13,7 @@ object StoreDescriptorRegistry {
     const val RULES_EXECUTION_ID = "rules.execution"
     const val RULES_TAKEOVER_ID = "rules.takeover"
     const val APP_STATE_ID = "app.state"
+    const val SKIN_LIBRARY_ID = "skin.library"
     const val AGENT_CONFIG_PREFIX = "agent.config."
     const val MAIN_AGENT_ID = "main"
 
@@ -49,7 +50,8 @@ object StoreDescriptorRegistry {
             "settings/rules/takeover_rules.json",
             """{"rules":[]}"""
         ),
-        StoreDescriptor(APP_STATE_ID, "settings/app_state.json")
+        StoreDescriptor(APP_STATE_ID, "settings/app_state.json"),
+        StoreDescriptor(SKIN_LIBRARY_ID, "settings/skin/library.json", """{"skins":[]}""")
     )
 
     private val staticDescriptorById = staticDescriptors.associateBy(StoreDescriptor::id)

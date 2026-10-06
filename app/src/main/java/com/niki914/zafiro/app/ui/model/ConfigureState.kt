@@ -36,6 +36,23 @@ data class SavedConfigSummary(
     val isActive: Boolean,
 )
 
+/**
+ * 配置文档 → 列表摘要。列表按创建时间排序（编辑不重排）；名称留空时回落到模型名。
+ * 设置页与对话页的模型胶囊共用，避免两处映射各自漂移。
+ */
+fun LlmConfigsDocument.configSummaries(): List<SavedConfigSummary> {
+    return configs
+        .sortedBy(SavedLlmConfig::createdAt)
+        .map { config ->
+            SavedConfigSummary(
+                id = config.id,
+                name = config.name.ifBlank { config.model },
+                modelId = config.model,
+                isActive = config.id == activeId,
+            )
+        }
+}
+
 data class ConfigureUiState(
     val scene: ConfigureScene = ConfigureScene.Onboarding,
     val providerSpec: ProviderSpec = ProviderSpecs.default,
@@ -125,6 +142,13 @@ sealed interface ConfigureIntent {
     data object ToggleApiKeyVisibility : ConfigureIntent
     data class ActivateConfig(val configId: String) : ConfigureIntent
     data class DeleteConfig(val configId: String) : ConfigureIntent
+
+    /**
+     * 复制一份配置（同一 API 配不同模型时免去重填 endpoint / apiKey / 协议）。
+     * [nameBase] 由 UI 按当前语言拼好（如「DeepSeek 副本」）；重名时仓储侧自动追加序号。
+     * 副本**不自动生效**——不打断用户正在用的那份。
+     */
+    data class DuplicateConfig(val configId: String, val nameBase: String) : ConfigureIntent
     data object Save : ConfigureIntent
     data object ShowModelCatalogSheet : ConfigureIntent
     data object HideModelCatalogSheet : ConfigureIntent
@@ -148,6 +172,9 @@ sealed interface ConfigureEffect {
 
     /** 配置删除成功，详情页应退出。 */
     data object ConfigDeleted : ConfigureEffect
+
+    /** 复制成功：列表页据此跳到新配置的详情页，让用户直接改模型名。 */
+    data class ConfigDuplicated(val configId: String, val configName: String) : ConfigureEffect
 }
 
 /** 端点与协议不匹配时的弹窗参数。
@@ -165,6 +192,7 @@ internal data class ConfigureViewModelDependencies(
     val loadDocument: suspend () -> LlmConfigsDocument,
     val upsertConfig: suspend (SavedLlmConfig) -> String?,
     val deleteConfig: suspend (String) -> Unit,
+    val duplicateConfig: suspend (configId: String, nameBase: String) -> String?,
     val setActiveConfig: suspend (String) -> Unit,
     val fetchModelCatalog: suspend (modelsUrl: String, apiKey: String, protocol: LlmProtocol) -> List<String>,
 ) {
@@ -173,6 +201,9 @@ internal data class ConfigureViewModelDependencies(
             loadDocument = { XRepo.llmConfigs.document() },
             upsertConfig = { XRepo.llmConfigs.upsert(it) },
             deleteConfig = { XRepo.llmConfigs.delete(it) },
+            duplicateConfig = { configId, nameBase ->
+                XRepo.llmConfigs.duplicate(configId, nameBase)
+            },
             setActiveConfig = { XRepo.llmConfigs.setActive(it) },
             fetchModelCatalog = { modelsUrl, apiKey, protocol ->
                 ModelCatalogApi.fetch(modelsUrl, apiKey, protocol)
@@ -247,6 +278,8 @@ class ConfigureViewModel internal constructor(
 
             is ConfigureIntent.ActivateConfig -> activateConfig(intent.configId)
             is ConfigureIntent.DeleteConfig -> deleteConfig(intent.configId)
+            is ConfigureIntent.DuplicateConfig ->
+                duplicateConfig(intent.configId, intent.nameBase)
             ConfigureIntent.Save -> handleSave()
             ConfigureIntent.ConfirmEndpointMismatch -> confirmEndpointMismatch()
             ConfigureIntent.CancelEndpointMismatch -> cancelEndpointMismatch()
@@ -308,16 +341,7 @@ class ConfigureViewModel internal constructor(
     }
 
     private fun summariesOf(document: LlmConfigsDocument): List<SavedConfigSummary> {
-        return document.configs
-            .sortedBy(SavedLlmConfig::createdAt)
-            .map { config ->
-                SavedConfigSummary(
-                    id = config.id,
-                    name = config.name.ifBlank { config.model },
-                    modelId = config.model,
-                    isActive = config.id == document.activeId,
-                )
-            }
+        return document.configSummaries()
     }
 
     private fun initializeOnboarding(document: LlmConfigsDocument, initialProviderId: String?) {
@@ -540,6 +564,26 @@ class ConfigureViewModel internal constructor(
             )
         }
         sendEffect(ConfigureEffect.ConfigDeleted)
+    }
+
+    /**
+     * 复制配置。**不动 active 归属**：副本只是给用户接着改模型名用的起点，
+     * 把正在生效的那份顶掉会造成「点一下复制就换了模型」的意外。
+     */
+    private suspend fun duplicateConfig(configId: String, nameBase: String) {
+        val newId = runCatching { dependencies.duplicateConfig(configId, nameBase) }
+            .onFailure { Logger.w(LOG_TAG, "duplicate failed reason=${it.message}") }
+            .getOrNull()
+            ?: return
+        val document = dependencies.loadDocument()
+        updateState {
+            copy(
+                savedConfigs = summariesOf(document),
+                activeConfigId = document.activeId,
+            )
+        }
+        val newName = document.configs.firstOrNull { it.id == newId }?.name.orEmpty()
+        sendEffect(ConfigureEffect.ConfigDuplicated(newId, newName))
     }
 
     private fun handleProtocolSwitch(newProtocolWireId: String) {

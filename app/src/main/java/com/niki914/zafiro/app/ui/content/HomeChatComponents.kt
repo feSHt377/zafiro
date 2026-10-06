@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
@@ -77,6 +78,7 @@ import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.model.rememberMarkdownState
 import com.niki914.uikit.base.BaseTheme
 import com.niki914.uikit.infra.ActionBarButton
+import com.niki914.uikit.infra.component.LiquidChip
 import com.niki914.uikit.infra.component.LiquidTextField
 import com.niki914.uikit.infra.shape.G2BubbleShape
 import com.niki914.uikit.infra.shape.G2CardShape
@@ -414,6 +416,26 @@ fun AssistantErrorBlock(
             )
         }
     }
+}
+
+/**
+ * 输入栏上方的模型胶囊：显示当前生效配置的模型名，点击打开切换单。
+ *
+ * 只在有生效配置时渲染（[model] 为空由调用方拦掉）。切换是全局的，
+ * 不随会话走，故不显示会话级暗示文案。
+ */
+@Composable
+fun HomeModelCapsule(
+    model: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LiquidChip(
+        text = model,
+        onClick = onClick,
+        modifier = modifier,
+        trailingIcon = Icons.Rounded.ExpandMore,
+    )
 }
 
 @Composable

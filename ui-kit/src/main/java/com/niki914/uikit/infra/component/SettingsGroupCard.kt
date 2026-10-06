@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.niki914.uikit.base.skin.LocalLiquidTokens
 import com.niki914.uikit.infra.shape.G2CardShape
 
 /**
@@ -31,7 +32,7 @@ fun SettingsGroupCard(
 ) {
     val titleColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
     val cardColor = MaterialTheme.colorScheme.surfaceContainer
-    val cardShape = G2CardShape(28.dp)
+    val cardShape = G2CardShape(LocalLiquidTokens.current.cardRadius)
 
     Column(modifier = modifier.fillMaxWidth()) {
         if (!title.isNullOrBlank()) {

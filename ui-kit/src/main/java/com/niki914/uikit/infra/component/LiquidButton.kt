@@ -23,6 +23,7 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
+import com.niki914.uikit.base.skin.LocalLiquidTokens
 import com.niki914.uikit.infra.interaction.InteractiveHighlight
 import com.niki914.uikit.infra.interaction.LiquidButtonInteractiveStyle
 import com.niki914.uikit.infra.interaction.applyLiquidInteractiveTransform
@@ -42,6 +43,7 @@ fun LiquidButton(
     val animationScope = rememberCoroutineScope()
     val interactiveStyle =
         LiquidButtonInteractiveStyle
+    val tokens = LocalLiquidTokens.current
 
     val interactiveHighlight = remember(animationScope) {
         InteractiveHighlight(
@@ -55,9 +57,9 @@ fun LiquidButton(
                 backdrop = backdrop,
                 shape = { G2CapsuleShape() },
                 effects = {
-                    vibrancy()
-                    blur(2f.dp.toPx())
-                    lens(12f.dp.toPx(), 24f.dp.toPx())
+                    if (tokens.vibrancyEnabled) vibrancy()
+                    blur(tokens.glassBlur.toPx())
+                    lens(tokens.glassLensRadius.toPx(), tokens.glassLensHeight.toPx())
                 },
                 layerBlock = if (isInteractive) {
                     {
@@ -110,9 +112,13 @@ fun LiquidButton(
     )
 }
 
+/**
+ * 按钮表面色 = 容器色按 token 不透明度稀释。**@Composable**：不透明度来自皮肤 token。
+ */
+@Composable
 internal fun liquidButtonSurfaceColor(containerColor: Color): Color =
     if (containerColor.isSpecified) {
-        containerColor.copy(alpha = 0.18f)
+        containerColor.copy(alpha = LocalLiquidTokens.current.buttonSurfaceAlpha)
     } else {
         Color.Unspecified
     }

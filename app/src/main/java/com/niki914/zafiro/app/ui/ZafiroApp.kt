@@ -44,7 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
-import com.niki914.uikit.base.BaseTheme
 import com.niki914.uikit.infra.LiquidScreen
 import com.niki914.uikit.infra.LiquidScreenSwipeContent
 import com.niki914.uikit.infra.TitleDirection
@@ -238,14 +237,8 @@ fun ZafiroApp(
         }
     }
 
-    val seedColor = themePrefs.seedColor?.let { Color(it) }
-
     Box(modifier = Modifier.fillMaxSize()) {
-        BaseTheme(
-            darkTheme = isDarkTheme,
-            dynamicColor = themePrefs.seedColor == null,
-            seedColor = seedColor,
-        ) {
+        ZafiroTheme(themePrefs) {
             LiquidScreen(
                 state = screenState,
                 // 折叠信号载体归属当前导航条目，由 LiquidScreen 经 nestedScroll 自动写入；

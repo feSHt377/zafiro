@@ -68,6 +68,9 @@ fun SavedConfigDetailContent(
 
                 ConfigureEffect.OnboardingSaveSucceeded,
                 is ConfigureEffect.SaveFailed,
+                // 复制只由配置列表页发起；详情页收到属越界，忽略。
+                // 显式列出而非加 else：保住后续新增 effect 的穷尽检查。
+                is ConfigureEffect.ConfigDuplicated,
                     -> Unit
             }
         }

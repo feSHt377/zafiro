@@ -33,6 +33,8 @@ class ConfigureViewModelTest {
         val upserted = mutableListOf<SavedLlmConfig>()
         val deletedIds = mutableListOf<String>()
         val activatedIds = mutableListOf<String>()
+        /** 复制调用记录：configId to nameBase。 */
+        val duplicated = mutableListOf<Pair<String, String>>()
         var catalogResult: List<String> = emptyList()
         var catalogError: Throwable? = null
 
@@ -63,6 +65,20 @@ class ConfigureViewModelTest {
                             else -> document.activeId
                         },
                     )
+                },
+                // 与仓储同契约：追加副本、**不动 activeId**（fake 若顺手置 active 就测不出回归）
+                duplicateConfig = { configId, nameBase ->
+                    duplicated += configId to nameBase
+                    val source = document.configs.firstOrNull { it.id == configId }
+                    if (source == null) {
+                        null
+                    } else {
+                        val newId = "cfg-copy-${duplicated.size}"
+                        document = document.copy(
+                            configs = document.configs + source.copy(id = newId, name = nameBase),
+                        )
+                        newId
+                    }
                 },
                 setActiveConfig = { id ->
                     activatedIds += id
@@ -231,6 +247,36 @@ class ConfigureViewModelTest {
         // VM 契约：编辑保存只 upsert，归属判定交给 repo 层
         assertEquals(1, deps.upserted.size)
         assertTrue(deps.activatedIds.isEmpty())
+    }
+
+    @Test
+    fun duplicateConfig_emitsNewIdAndKeepsActiveBelonging() = runTest {
+        val deps = RecordingDeps()
+        deps.document = LlmConfigsDocument(
+            activeId = "cfg-a",
+            configs = listOf(
+                savedLlmConfig("cfg-a"),
+                savedLlmConfig("cfg-b"),
+            ),
+        )
+        val viewModel = ConfigureViewModel(deps.toDependencies())
+        viewModel.sendIntent(ConfigureIntent.Initialize(ConfigureScene.SettingsEdit))
+        advanceUntilIdle()
+        val effectDeferred = async { viewModel.uiEffect.first() }
+
+        viewModel.sendIntent(ConfigureIntent.DuplicateConfig("cfg-b", "cfg-b 副本"))
+        advanceUntilIdle()
+
+        assertEquals(listOf("cfg-b" to "cfg-b 副本"), deps.duplicated)
+        // 关键不变量：复制不改 active 归属——用户正在用的 cfg-a 不能被副本顶掉
+        assertTrue(deps.activatedIds.isEmpty())
+        assertEquals("cfg-a", viewModel.uiStateFlow.value.activeConfigId)
+        // 列表已刷新，副本在列
+        assertEquals(3, viewModel.uiStateFlow.value.savedConfigs.size)
+        assertEquals(
+            ConfigureEffect.ConfigDuplicated("cfg-copy-1", "cfg-b 副本"),
+            effectDeferred.await(),
+        )
     }
 
     @Test

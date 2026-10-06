@@ -16,6 +16,7 @@ import com.niki914.uikit.infra.component.SettingsListPageContent
 import com.niki914.uikit.infra.component.SettingNavigationItem
 import com.niki914.uikit.infra.nav.pageViewModel
 import com.niki914.zafiro.app.R
+import com.niki914.zafiro.app.ui.model.ConfigureEffect
 import com.niki914.zafiro.app.ui.model.ConfigureIntent
 import com.niki914.zafiro.app.ui.model.ConfigureScene
 import com.niki914.zafiro.app.ui.model.ConfigureViewModel
@@ -46,6 +47,15 @@ fun ModelConfigSettingsContent(
         )
     }
 
+    // 复制成功后直接进新配置的详情页：复制的目的就是接着改模型名，不该让用户再找一遍
+    LaunchedEffect(viewModel) {
+        viewModel.uiEffect.collect { effect ->
+            if (effect is ConfigureEffect.ConfigDuplicated) {
+                onOpenConfigDetail(effect.configId, effect.configName)
+            }
+        }
+    }
+
     EditableSettingsDetailChrome(
         isCreating = false,
         hasUnsavedChanges = { false },
@@ -74,6 +84,11 @@ fun ModelConfigSettingsContent(
                     if (summary != null) {
                         onOpenConfigDetail(configId, summary.name)
                     }
+                },
+                onDuplicateClick = { configId, nameBase ->
+                    viewModel.sendIntent(
+                        ConfigureIntent.DuplicateConfig(configId, nameBase)
+                    )
                 },
                 onActivateClick = { configId ->
                     viewModel.sendIntent(ConfigureIntent.ActivateConfig(configId))

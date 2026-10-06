@@ -16,8 +16,11 @@ import com.niki914.zafiro.api.model.isRunning
 import com.niki914.zafiro.app.conversation.ConversationFormatter
 import com.niki914.zafiro.app.conversation.ForkKind
 import com.niki914.zafiro.app.ui.model.TextPacer
+import com.niki914.zafiro.app.ui.model.configSummaries
 import com.niki914.zafiro.business.files.FileAttachResult
 import com.niki914.zafiro.business.files.FilesService
+import com.niki914.zafiro.repo.LlmConfigsDocument
+import com.niki914.zafiro.repo.XRepo
 import com.niki914.zafiro.service.requireService
 import java.io.File
 import kotlinx.coroutines.CancellableContinuation
@@ -49,6 +52,9 @@ class HomeChatViewModel internal constructor(
     private val textPacer: TextPacer = TextPacer(),
     // thinking 与正文在流中交织（thinking → tool → text），坐标系独立，单独实例
     private val thinkingPacer: TextPacer = TextPacer(),
+    // 配置读写可注入：单测不碰 XRepo（与 ConfigureViewModelDependencies 同法）
+    private val loadLlmConfigs: suspend () -> LlmConfigsDocument = { XRepo.llmConfigs.document() },
+    private val setActiveLlmConfig: suspend (String) -> Unit = { XRepo.llmConfigs.setActive(it) },
 ) : ComposeMVIViewModel<HomeChatIntent, HomeChatUiState, HomeChatEffect>() {
     private val agent: Agent get() = requireService()
     private val files: FilesService get() = requireService()
@@ -76,6 +82,7 @@ class HomeChatViewModel internal constructor(
         agent.addApprover(approvalApprover)
         observeAgent()
         restoreLastConversationOnStartup()
+        viewModelScope.launch { refreshConfigs() }
     }
 
     override fun initUiState(): HomeChatUiState = HomeChatUiState()
@@ -104,7 +111,47 @@ class HomeChatViewModel internal constructor(
             is HomeChatIntent.ForkAt -> forkAt(intent.turnId)
             is HomeChatIntent.RewindAt -> rewindAt(intent.turnId)
             is HomeChatIntent.ResolveApproval -> approvalApprover.settle(intent.decision)
+            HomeChatIntent.RefreshConfigs -> refreshConfigs()
+            HomeChatIntent.ShowConfigSheet -> {
+                refreshConfigs()
+                updateState { copy(showConfigSheet = true) }
+            }
+
+            HomeChatIntent.HideConfigSheet -> updateState { copy(showConfigSheet = false) }
+            is HomeChatIntent.SelectConfig -> selectConfig(intent.configId)
         }
+    }
+
+    // ── LLM 配置切换 ────────────────────────────────────────────────────────
+
+    /** 重读配置列表。失败保留旧快照：胶囊短暂显示旧模型，好过整块消失。 */
+    private suspend fun refreshConfigs() {
+        runCatching { loadLlmConfigs() }
+            .onSuccess { document ->
+                updateState {
+                    copy(
+                        llmConfigs = document.configSummaries(),
+                        activeConfigId = document.activeId,
+                    )
+                }
+            }
+            .onFailure { Logger.w(LOG_TAG, "load llm configs failed ${it.message}") }
+    }
+
+    /**
+     * 切换到另一份配置。运行时每回合开头重读生效配置
+     * （`LLMController.stream` → `refresh`），故下一条消息即用新模型，
+     * 无需重建会话；协议变化时会话树也会经 export/restore 延续。
+     */
+    private suspend fun selectConfig(configId: String) {
+        updateState { copy(showConfigSheet = false) }
+        if (configId == currentState.activeConfigId) return
+        runCatching { setActiveLlmConfig(configId) }
+            .onSuccess {
+                Logger.i(LOG_TAG, "switch llm config id=$configId")
+                refreshConfigs()
+            }
+            .onFailure { Logger.w(LOG_TAG, "switch llm config failed ${it.message}") }
     }
 
     // ── Agent 观察 ──────────────────────────────────────────────────────────

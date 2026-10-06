@@ -18,6 +18,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.materialkolor.rememberDynamicColorScheme
+import com.niki914.uikit.base.skin.LiquidTokens
+import com.niki914.uikit.base.skin.LocalLiquidTokens
+import com.niki914.uikit.base.skin.LocalSkinBackdrop
+import com.niki914.uikit.base.skin.LocalSkinDialogBackground
+import com.niki914.uikit.base.skin.SkinBackdrop
+import com.niki914.uikit.base.skin.SkinDialogBackground
 import com.niki914.uikit.base.theme.DarkColorScheme
 import com.niki914.uikit.base.theme.LightColorScheme
 import com.niki914.uikit.base.theme.Typography
@@ -32,13 +38,21 @@ fun BaseTheme(
     dynamicColor: Boolean = true, // 启用动态颜色
     /** 非空时从种子色生成 Material 色板，忽略 dynamicColor。 */
     seedColor: Color? = null,
+    /** 纯黑背景（AMOLED）。仅在 [seedColor] 非空时生效——只影响生成的色板。 */
+    amoled: Boolean = false,
+    /** 液态玻璃材质 token；皮肤经此改观感。默认 = 抽取前的硬编码值。 */
+    tokens: LiquidTokens = LiquidTokens(),
+    /** 背景装饰层；皮肤经此改观感。默认无装饰 = 抽取前的观感。 */
+    backdrop: SkinBackdrop = SkinBackdrop.None,
+    /** 对话框面板背景；皮肤经此改观感。默认无 = 纯材质。 */
+    dialogBackground: SkinDialogBackground = SkinDialogBackground.None,
     content: @Composable () -> Unit, // 实际要应用主题的 Composable 内容
 ) {
     // 根据条件选择颜色方案
     val colorScheme = when {
         // 种子色优先：用户主动选定的主题颜色
         seedColor != null ->
-            rememberDynamicColorScheme(seedColor = seedColor, isDark = darkTheme, isAmoled = false)
+            rememberDynamicColorScheme(seedColor = seedColor, isDark = darkTheme, isAmoled = amoled)
 
         // 如果启用动态颜色且 Android 版本 >= S (Android 12)
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -78,7 +92,12 @@ fun BaseTheme(
         }
     }
 
-    CompositionLocalProvider(LocalAppDarkTheme provides darkTheme) {
+    CompositionLocalProvider(
+        LocalAppDarkTheme provides darkTheme,
+        LocalLiquidTokens provides tokens,
+        LocalSkinBackdrop provides backdrop,
+        LocalSkinDialogBackground provides dialogBackground,
+    ) {
         // 应用 MaterialTheme
         MaterialTheme(
             colorScheme = colorScheme, // 使用选择的颜色方案

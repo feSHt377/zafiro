@@ -46,6 +46,7 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
+import com.niki914.uikit.base.skin.LocalLiquidTokens
 import com.niki914.uikit.infra.interaction.InteractiveHighlight
 import com.niki914.uikit.infra.interaction.LiquidInteractiveStyle
 import com.niki914.uikit.infra.interaction.applyLiquidInteractiveTransform
@@ -105,7 +106,8 @@ internal fun LiquidTextFieldContainer(
         )
     }
     val interactiveEffectsEnabled = enabled && (!isFocused || textFieldValue.text.isEmpty())
-    val fieldShape = G2FieldShape(36.dp)
+    val tokens = LocalLiquidTokens.current
+    val fieldShape = G2FieldShape(tokens.fieldRadius)
 
     LaunchedEffect(value) {
         if (value != textFieldValue.text) {
@@ -133,12 +135,12 @@ internal fun LiquidTextFieldContainer(
         colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     }
     val surfaceColor = if (enabled) {
-        colorScheme.surfaceContainerHigh.copy(alpha = 0.64f)
+        colorScheme.surfaceContainerHigh.copy(alpha = tokens.fieldSurfaceAlpha)
     } else {
-        colorScheme.surfaceContainer.copy(alpha = 0.42f)
+        colorScheme.surfaceContainer.copy(alpha = tokens.fieldDisabledSurfaceAlpha)
     }
     val tintColor = if (enabled) {
-        colorScheme.primaryContainer.copy(alpha = 0.32f)
+        colorScheme.primaryContainer.copy(alpha = tokens.fieldTintAlpha)
     } else {
         Color.Transparent
     }
@@ -174,9 +176,9 @@ internal fun LiquidTextFieldContainer(
                 backdrop = backdrop,
                 shape = { fieldShape },
                 effects = {
-                    vibrancy()
-                    blur(2.dp.toPx())
-                    lens(12.dp.toPx(), 24.dp.toPx())
+                    if (tokens.vibrancyEnabled) vibrancy()
+                    blur(tokens.glassBlur.toPx())
+                    lens(tokens.glassLensRadius.toPx(), tokens.glassLensHeight.toPx())
                 },
                 layerBlock = if (interactiveEffectsEnabled) {
                     {

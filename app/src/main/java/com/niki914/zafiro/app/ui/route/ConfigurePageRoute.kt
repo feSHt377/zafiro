@@ -46,6 +46,9 @@ internal fun ConfigurePageRoute(
                 ConfigureEffect.OnboardingSaveSucceeded -> onPush(DonePage)
                 ConfigureEffect.SettingsSaveSucceeded -> Unit
                 ConfigureEffect.ConfigDeleted -> Unit
+                // 复制只由配置列表页发起；本路由（onboarding）收不到。
+                // 显式列出而非加 else：保住后续新增 effect 的穷尽检查。
+                is ConfigureEffect.ConfigDuplicated -> Unit
                 ConfigureEffect.FocusModel -> {
                     pendingFocusField = ConfigureEditableField.Model
                 }

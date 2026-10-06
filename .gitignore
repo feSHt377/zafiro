@@ -6,6 +6,9 @@
 *.iws
 /.worktrees/
 
+# VS Code / Eclipse Java 语言服务器的编译输出目录（不是 Gradle 产物，**/build/ 管不到它）
+**/bin/
+
 /.pi/*
 !/.pi/skills/
 /.pi/skills/*

@@ -55,6 +55,7 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
+import com.niki914.uikit.base.skin.LocalLiquidTokens
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -71,6 +72,8 @@ fun LiquidToggle(
 ) {
     val haptics = LocalHapticFeedback.current
     val colorScheme = MaterialTheme.colorScheme
+    // token 必须在组合体内取值：drawBackdrop 的 highlight/effects 是绘制 lambda
+    val tokens = LocalLiquidTokens.current
     val currentChecked by rememberUpdatedState(checked)
     val currentOnCheckedChange by rememberUpdatedState(onCheckedChange)
 
@@ -299,7 +302,7 @@ fun LiquidToggle(
                     highlight = {
                         val progress = progressAnimation.value
                         Highlight.Ambient.copy(
-                            alpha = progress
+                            alpha = if (tokens.ambientHighlightEnabled) progress else 0f
                         )
                     },
                     shadow = {
@@ -362,7 +365,7 @@ fun LiquidToggle(
                     },
                     effects = {
                         lens(
-                            refractionHeight = 6f.dp.toPx(),
+                            refractionHeight = tokens.refractionHeight.toPx(),
                             refractionAmount = size.height / 2f,
                             depthEffect = true,
                             chromaticAberration = true

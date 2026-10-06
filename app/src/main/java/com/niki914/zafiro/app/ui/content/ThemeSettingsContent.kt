@@ -16,7 +16,7 @@ import com.niki914.zafiro.app.ui.model.ThemeController
 import com.niki914.zafiro.app.ui.model.ThemeMode
 import kotlinx.coroutines.launch
 
-/** 主题预设种子色（ARGB），顺序与 [themeColorLabelRes] 一一对应。 */
+/** 主题预设种子色（ARGB），顺序与 [ThemeColorLabelRes] 一一对应。 */
 internal val ThemeSeedColors: List<Int> = listOf(
     0xFFFEB4A7.toInt(), 0xFFFFB3C0.toInt(), 0xFFFCAAFF.toInt(), 0xFFB9C3FF.toInt(),
     0xFF62D3FF.toInt(), 0xFF44D9F1.toInt(), 0xFF52DBC9.toInt(), 0xFF78DD77.toInt(),
@@ -38,6 +38,14 @@ internal val ThemeColorLabelRes: List<Int> = listOf(
     R.string.ui_theme_color_sunset,
 )
 
+/**
+ * 外观页：深浅模式 + **全局配色** + 拼接工作台。
+ *
+ * 「全局配色」与皮肤里的「主题色」是两个不同的东西，页面上分开：
+ * - 全局配色是用户手里那面调色盘，内置预设皮肤跟随它；
+ * - 皮肤自带的主题色优先于全局配色（拼好的皮肤应该自带颜色）。
+ * 两者都不设时才回落到壁纸动态色。
+ */
 @Composable
 fun ThemeSettingsContent() {
     val scope = rememberCoroutineScope()
@@ -65,6 +73,7 @@ fun ThemeSettingsContent() {
         )
 
         SelectionGroupCard(
+            title = stringResource(R.string.ui_theme_global_color_section),
             options = buildList {
                 add(
                     SelectionOption(
@@ -89,5 +98,7 @@ fun ThemeSettingsContent() {
             },
             isDarkTheme = isDarkTheme,
         )
+
+        SkinWorkbenchContent(prefs = prefs, isDarkTheme = isDarkTheme)
     }
 }

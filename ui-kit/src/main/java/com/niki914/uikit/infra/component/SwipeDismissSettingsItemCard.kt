@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -49,10 +50,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.niki914.uikit.base.skin.LocalLiquidTokens
 import com.niki914.uikit.infra.shape.G2CardShape
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.exp
+
+/** 卡片尾随的一个动作：文字 + 回调。命中由 [SettingsItemSurface] 按窗口坐标分发。 */
+data class SwipeDismissTrailingAction(
+    val text: String,
+    val onClick: () -> Unit,
+)
 
 @Composable
 fun SwipeDismissSettingsItemCard(
@@ -63,9 +71,8 @@ fun SwipeDismissSettingsItemCard(
     summary: String? = null,
     leadingContent: (@Composable () -> Unit)? = null,
     showChevron: Boolean = false,
-    /** 尾随动作文字（如「编辑」），点击命中由 SettingsItemSurface 统一分发。 */
-    trailingActionText: String? = null,
-    onTrailingActionClick: (() -> Unit)? = null,
+    /** 尾随动作，按顺序渲染（如「复制」在左、「编辑」在右）。 */
+    trailingActions: List<SwipeDismissTrailingAction> = emptyList(),
     highlightPulseKey: Any? = null,
     highlightPulseDurationMillis: Int = 500,
     enabled: Boolean = true,
@@ -76,7 +83,11 @@ fun SwipeDismissSettingsItemCard(
     dampingRange: Dp = SwipeDismissSettingsItemDefaults.DampingRange,
     dismissIcon: ImageVector = Icons.Default.Delete,
 ) {
-    var trailingActionBounds by remember { mutableStateOf<Rect?>(null) }
+    // 每个动作各自测窗口坐标：命中区必须互不重叠，才能分辨点的是哪一个
+    val trailingActionBounds = remember { mutableStateMapOf<Int, Rect>() }
+    val surfaceTrailingActions = trailingActions.mapIndexedNotNull { index, action ->
+        trailingActionBounds[index]?.let { SettingsItemTrailingAction(it, action.onClick) }
+    }
 
     val density = LocalDensity.current
     val thresholdPx = with(density) { threshold.toPx() }
@@ -101,7 +112,7 @@ fun SwipeDismissSettingsItemCard(
         label = "swipeDismissDistance",
     )
 
-    val shape = G2CardShape(28.dp)
+    val shape = G2CardShape(LocalLiquidTokens.current.cardRadius)
     val backgroundColor = lerp(
         start = MaterialTheme.colorScheme.surfaceContainer,
         stop = MaterialTheme.colorScheme.error,
@@ -209,8 +220,7 @@ fun SwipeDismissSettingsItemCard(
             highlightPulseKey = highlightPulseKey,
             highlightPulseDurationMillis = highlightPulseDurationMillis,
             onClick = onClick,
-            onTrailingActionClick = onTrailingActionClick,
-            trailingActionBoundsInWindow = trailingActionBounds.takeIf { !trailingActionText.isNullOrBlank() },
+            trailingActions = surfaceTrailingActions,
             modifier = Modifier
                 .offset { IntOffset(x = -animatedDistancePx.toInt(), y = 0) },
         ) {
@@ -219,8 +229,10 @@ fun SwipeDismissSettingsItemCard(
                 summary = summary,
                 leadingContent = leadingContent,
                 showChevron = showChevron,
-                trailingActionText = trailingActionText,
-                onTrailingActionBoundsChange = { trailingActionBounds = it },
+                trailingActions = trailingActions,
+                onTrailingActionBoundsChange = { index, bounds ->
+                    trailingActionBounds[index] = bounds
+                },
                 contentColor = contentColor,
                 summaryColor = summaryColor,
             )
@@ -234,8 +246,8 @@ private fun SwipeDismissSettingsItemContent(
     summary: String?,
     leadingContent: (@Composable () -> Unit)?,
     showChevron: Boolean,
-    trailingActionText: String?,
-    onTrailingActionBoundsChange: (Rect?) -> Unit,
+    trailingActions: List<SwipeDismissTrailingAction>,
+    onTrailingActionBoundsChange: (index: Int, bounds: Rect) -> Unit,
     contentColor: Color,
     summaryColor: Color,
 ) {
@@ -280,13 +292,14 @@ private fun SwipeDismissSettingsItemContent(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (!trailingActionText.isNullOrBlank()) {
+            trailingActions.forEachIndexed { index, action ->
                 Text(
-                    text = trailingActionText,
+                    text = action.text,
                     style = MaterialTheme.typography.bodyMedium,
                     color = summaryColor,
+                    maxLines = 1,
                     modifier = Modifier.onGloballyPositioned { layoutCoordinates ->
-                        onTrailingActionBoundsChange(layoutCoordinates.boundsInWindow())
+                        onTrailingActionBoundsChange(index, layoutCoordinates.boundsInWindow())
                     },
                 )
             }

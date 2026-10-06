@@ -50,6 +50,8 @@ object XRepo {
     val skills: SkillApi = SkillApi(this)
     val storage: StorageApi = StorageApi(this)
     val llmConfigs = LlmConfigsApi(this)
+    val skinImages = SkinImageStore(this)
+    val skinLibrary = SkinLibraryApi(this)
 
     private val writeMutex = Mutex()
     private var appContext: Context? = null
@@ -735,11 +737,54 @@ class LlmConfigsApi internal constructor(
         }
     }
 
+    /**
+     * 复制一份配置：「同一 API 配多个模型」时免去重填 endpoint / apiKey / 协议。
+     *
+     * **有意不经 [upsert]**：upsert 在新建时会自动把 active 切到新配置，而复制属于
+     * 「派生一份」——用户此刻正在用的那份不该被顶掉。所以这里只追加，不碰 activeId。
+     *
+     * @param newNameBase 期望名称（调用方按语言拼好，如「DeepSeek 副本」）；
+     *   与现有名称冲突时追加 " 2"、" 3"…
+     * @return 新配置 id；源配置不存在时 null
+     */
+    suspend fun duplicate(sourceId: String, newNameBase: String): String? {
+        val targetId = sourceId.trim()
+        val newId = newConfigId()
+        var created = false
+        repo.updateJson(StoreDescriptorRegistry.LLM_CONFIGS_ID) { json ->
+            val doc = LlmConfigsSettingsCodec.parse(json)
+            val source = doc.configs.firstOrNull { it.id == targetId }
+                ?: return@updateJson json
+            val nowMillis = System.currentTimeMillis()
+            val copy = source.copy(
+                id = newId,
+                name = uniqueConfigName(
+                    base = newNameBase.trim().ifBlank { source.name },
+                    taken = doc.configs.map { it.name },
+                ),
+                createdAt = nowMillis,
+                updatedAt = nowMillis,
+            )
+            created = true
+            LlmConfigsSettingsCodec.encode(doc.copy(configs = doc.configs + copy))
+        }
+        return newId.takeIf { created }
+    }
+
     private companion object {
         private const val LOG_TAG = "niki914_zafiro_LlmConfigs"
 
         fun newConfigId(): String {
             return "cfg-" + UUID.randomUUID().toString().replace("-", "").take(12)
+        }
+
+        /** 名称去重：被占用时追加 " 2"、" 3"…。数字后缀各语言通用，不进 i18n。 */
+        fun uniqueConfigName(base: String, taken: Collection<String>): String {
+            val used = taken.mapTo(mutableSetOf()) { it.trim() }
+            if (base !in used) return base
+            var index = 2
+            while ("$base $index" in used) index++
+            return "$base $index"
         }
     }
 }

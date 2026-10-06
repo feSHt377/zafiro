@@ -12,6 +12,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -230,6 +231,58 @@ class XRepoTest {
         XRepo.llmConfigs.delete("cfg-a")
         assertTrue(XRepo.llmConfigs.document().configs.isEmpty())
         assertFalse(XRepo.onboardingCompleted())
+    }
+
+    @Test
+    fun llmConfigs_duplicateKeepsActiveAndCarriesConnectionFields() = runTest {
+        val store = installStore(FakeDomainSettingsStore())
+        val storeJson =
+            { LlmConfigsSettingsCodec.parse(store.jsonFor(StoreDescriptorRegistry.LLM_CONFIGS_ID)) }
+
+        XRepo.llmConfigs.upsert(savedConfig(id = "cfg-source", model = "model-a"))
+        XRepo.llmConfigs.upsert(savedConfig(id = "cfg-active", model = "model-b"))
+        XRepo.llmConfigs.setActive("cfg-active")
+
+        val newId = XRepo.llmConfigs.duplicate("cfg-source", "DeepSeek 副本")
+        val document = storeJson()
+        val source = document.configs.first { it.id == "cfg-source" }
+        val copy = document.configs.first { it.id == newId }
+
+        // 核心不变量：复制不得改动 active——用户此刻正在用的那份不能被顶掉。
+        // （走上 upsert 的话新建会置 active，这正是本方法不复用 upsert 的原因。）
+        assertEquals("cfg-active", document.activeId)
+
+        // 复制必须原样带走接入信息：同 API 配多模型靠的就是这些不用重填
+        assertEquals(source.endpoint, copy.endpoint)
+        assertEquals(source.apiKey, copy.apiKey)
+        assertEquals(source.protocol, copy.protocol)
+        assertEquals(source.provider, copy.provider)
+        assertEquals(source.proxy, copy.proxy)
+        assertEquals("model-a", copy.model)
+
+        assertNotEquals(source.id, copy.id)
+    }
+
+    @Test
+    fun llmConfigs_duplicateDedupesNameAndSkipsMissingSource() = runTest {
+        val store = installStore(FakeDomainSettingsStore())
+        val storeJson =
+            { LlmConfigsSettingsCodec.parse(store.jsonFor(StoreDescriptorRegistry.LLM_CONFIGS_ID)) }
+
+        XRepo.llmConfigs.upsert(savedConfig(id = "cfg-a"))
+
+        // savedConfig 的 name == id，所以目标名 "cfg-a" 必然与源撞名 → 追加序号
+        val first = XRepo.llmConfigs.duplicate("cfg-a", "cfg-a")
+        assertEquals("cfg-a 2", storeJson().configs.first { it.id == first }.name)
+
+        // 再复一份同名：继续递增，绝不覆盖已有配置
+        val second = XRepo.llmConfigs.duplicate("cfg-a", "cfg-a")
+        assertEquals("cfg-a 3", storeJson().configs.first { it.id == second }.name)
+
+        // 源不存在 → 返回 null 且不产生任何写入
+        val before = storeJson().configs.size
+        assertNull(XRepo.llmConfigs.duplicate("cfg-missing", "whatever"))
+        assertEquals(before, storeJson().configs.size)
     }
 
     @Test

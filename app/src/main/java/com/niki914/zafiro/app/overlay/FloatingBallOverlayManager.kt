@@ -9,10 +9,8 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
@@ -21,7 +19,6 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.niki914.logging.Logger
-import com.niki914.uikit.base.BaseTheme
 import com.niki914.zafiro.api.AgentControl
 import com.niki914.zafiro.api.Approver
 import com.niki914.zafiro.api.model.AgentState
@@ -29,6 +26,7 @@ import com.niki914.zafiro.api.model.ApprovalDecision
 import com.niki914.zafiro.api.model.ApprovalRequest
 import com.niki914.zafiro.api.model.isRunning
 import com.niki914.zafiro.app.MainActivity
+import com.niki914.zafiro.app.ui.ZafiroTheme
 import com.niki914.zafiro.app.ui.model.ThemeController
 import com.niki914.zafiro.app.ui.model.ToolPresentation
 import com.niki914.zafiro.remoteview.floatingball.DockSide
@@ -292,15 +290,8 @@ object FloatingBallOverlayManager {
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                 setContent {
                     val themePrefs = ThemeController.prefs
-                    val isSystemDark = isSystemInDarkTheme()
-                    val isDark = themePrefs.resolveDarkTheme(isSystemDark)
-                    val seed = themePrefs.seedColor?.let { Color(it) }
 
-                    BaseTheme(
-                        darkTheme = isDark,
-                        dynamicColor = themePrefs.seedColor == null,
-                        seedColor = seed,
-                    ) {
+                    ZafiroTheme(themePrefs) {
                         FloatingBallCollapsedBall(
                             onClick = {
                                 vmInstance.sendIntent(FloatingBallIntent.RequestExpand)
@@ -355,17 +346,10 @@ object FloatingBallOverlayManager {
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
                 setContent {
                     val themePrefs = ThemeController.prefs
-                    val isSystemDark = isSystemInDarkTheme()
-                    val isDark = themePrefs.resolveDarkTheme(isSystemDark)
-                    val seed = themePrefs.seedColor?.let { Color(it) }
 
                     val uiState by vmInstance.uiStateFlow.collectAsState()
 
-                    BaseTheme(
-                        darkTheme = isDark,
-                        dynamicColor = themePrefs.seedColor == null,
-                        seedColor = seed,
-                    ) {
+                    ZafiroTheme(themePrefs) {
                         FloatingBallMorphCard(
                             state = uiState.ballState,
                             dockSide = uiState.dockSide,
@@ -500,15 +484,8 @@ object FloatingBallOverlayManager {
             setViewTreeViewModelStoreOwner(owner)
             setContent {
                 val themePrefs = ThemeController.prefs
-                val isSystemDark = isSystemInDarkTheme()
-                val isDark = themePrefs.resolveDarkTheme(isSystemDark)
-                val seed = themePrefs.seedColor?.let { Color(it) }
 
-                BaseTheme(
-                    darkTheme = isDark,
-                    dynamicColor = themePrefs.seedColor == null,
-                    seedColor = seed,
-                ) {
+                ZafiroTheme(themePrefs) {
                     val uiState by vm.uiStateFlow.collectAsState()
                     FloatingBallDetailMorphCard(
                         startCardX = cardXDp,

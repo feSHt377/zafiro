@@ -33,6 +33,7 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
 import com.niki914.uikit.base.LocalAppDarkTheme
+import com.niki914.uikit.base.skin.LocalLiquidTokens
 import com.niki914.uikit.infra.interaction.ActionBarButtonInteractiveStyle
 import com.niki914.uikit.infra.interaction.InteractiveHighlight
 import com.niki914.uikit.infra.interaction.applyLiquidInteractiveTransform
@@ -58,6 +59,8 @@ fun ActionBarButton(
     }
     val density = LocalDensity.current
     val isDarkTheme = LocalAppDarkTheme.current
+    // token 必须在组合体内取值：drawBackdrop 的 highlight/effects 是绘制 lambda，不是组合作用域
+    val tokens = LocalLiquidTokens.current
     val interactionSource = remember { MutableInteractionSource() }
     val buttonShape = RoundedCornerShape(56.dp)
 
@@ -68,7 +71,11 @@ fun ActionBarButton(
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { buttonShape },
-                highlight = { Highlight.Ambient.copy(alpha = if (isDarkTheme) 1f else 0f) },
+                highlight = {
+                    Highlight.Ambient.copy(
+                        alpha = if (tokens.ambientHighlightEnabled && isDarkTheme) 1f else 0f
+                    )
+                },
                 shadow = {
                     Shadow(
                         radius = 12f.dp,
@@ -109,7 +116,7 @@ fun ActionBarButton(
                 },
                 effects = {
                     lens(
-                        refractionHeight = 6f.dp.toPx(),
+                        refractionHeight = tokens.refractionHeight.toPx(),
                         refractionAmount = size.height / 2f,
                         depthEffect = true,
                         chromaticAberration = true

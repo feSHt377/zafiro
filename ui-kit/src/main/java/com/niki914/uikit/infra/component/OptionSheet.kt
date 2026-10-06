@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.niki914.uikit.base.skin.LocalLiquidTokens
 import com.niki914.uikit.infra.shape.G2FieldShape
 import kotlinx.coroutines.launch
 
@@ -48,12 +49,18 @@ fun OptionSheet(
     if (!visible) return
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val sheetTopRadius = LocalLiquidTokens.current.sheetTopRadius
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         // 只圆上面两角：底边贴在屏幕外
-        shape = G2FieldShape(topStart = 32.dp, topEnd = 32.dp, bottomEnd = 0.dp, bottomStart = 0.dp),
+        shape = G2FieldShape(
+            topStart = sheetTopRadius,
+            topEnd = sheetTopRadius,
+            bottomEnd = 0.dp,
+            bottomStart = 0.dp,
+        ),
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
@@ -88,11 +95,12 @@ fun OptionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     checked: Boolean = false,
+    subtitle: String? = null,
     leadingContent: (@Composable () -> Unit)? = null,
 ) {
     // 选中态 = 对比色底 + G2 圆角框，文字换 onContainer 保可读；未选中透明。
     // clip 保证按下底色与选中底色同形状（SettingsItemSurface 自身无 shape 参数）。
-    val highlightShape = G2FieldShape(20.dp)
+    val highlightShape = G2FieldShape(LocalLiquidTokens.current.optionRowRadius)
     SettingsItemSurface(
         onClick = onClick,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -121,6 +129,17 @@ fun OptionRow(
                     MaterialTheme.colorScheme.onSurface
                 },
             )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (checked) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
         }
         if (checked) {
             Icon(
