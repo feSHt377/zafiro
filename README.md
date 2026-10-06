@@ -198,5 +198,7 @@ When reporting an issue, please include as much detail as possible: phone model 
 MIT — see [LICENSE](LICENSE).
 
 <p align="center">
-  Made with ✨️ by <a href="https://github.com/niki914">niki914</a> & <a href="https://github.com/feSHt377">feSHt377</a>
+  Made with ✨️ by <a href="https://github.com/niki914">niki914</a>
+  <br/>
+  Forked and modified by <a href="https://github.com/feSHt377">feSHt377</a>
 </p>

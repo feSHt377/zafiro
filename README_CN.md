@@ -198,5 +198,7 @@ keytool -genkeypair -v -keystore my-release.jks \
 MIT — 详见 [LICENSE](LICENSE)。
 
 <p align="center">
-  Made with ✨️ by <a href="https://github.com/niki914">niki914</a> & <a href="https://github.com/feSHt377">feSHt377</a>
+  Made with ✨️ by <a href="https://github.com/niki914">niki914</a>
+  <br/>
+  由 <a href="https://github.com/feSHt377">feSHt377</a> 分叉并修改
 </p>
