@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.niki914.zafiro.remoteview"
+    namespace = "com.fesht3.zafiro.remoteview"
     compileSdk = 37
 
     defaultConfig {

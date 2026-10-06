@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.niki914.zafiro.business.application"
+    namespace = "com.fesht3.zafiro.business.application"
     compileSdk = 37
 
     defaultConfig {

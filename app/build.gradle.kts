@@ -12,7 +12,7 @@ ksp {
 }
 
 android {
-    namespace = "com.niki914.zafiro.app"
+    namespace = "com.fesht3.zafiro.app"
     compileSdk = 37
 
     testOptions {
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.niki914.zafiro"
+        applicationId = "com.fesht3.zafiro"
         minSdk = 26
         targetSdk = 34
         versionName = "1.5.0"

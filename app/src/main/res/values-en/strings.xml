@@ -167,7 +167,6 @@
     <string name="ui_settings_about_description">Bring your own model to your voice assistant</string>
     <string name="ui_settings_about_author_homepage">Author Website</string>
     <string name="ui_settings_about_github">GitHub</string>
-    <string name="ui_settings_about_afdian">Afdian</string>
     <string name="ui_settings_about_telegram">Telegram Group</string>
     <string name="ui_settings_about_feedback_feature">Feature Requests</string>
     <string name="ui_settings_about_feedback_bug">Bug Reports</string>

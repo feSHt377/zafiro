@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.niki914.zafiro.business.notification"
+    namespace = "com.fesht3.zafiro.business.notification"
     compileSdk = 37
 
     defaultConfig {

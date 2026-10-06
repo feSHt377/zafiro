@@ -27,7 +27,7 @@
 
 ### 1.2 现状（已核实的事实）
 
-`agent-runtime/src/main/java/com/niki914/zafiro/chat/LLMController.kt`：938 行，`object` 单例，10 组职责混在一起（配置与提示词装配、图片 ingest、okia 实例与协议装配、会话生命周期、回合执行、停止、本地工具注册、MCP 发现、历史修复钩子、杂项状态）。
+`agent-runtime/src/main/java/com/feSHt377/zafiro/chat/LLMController.kt`：938 行，`object` 单例，10 组职责混在一起（配置与提示词装配、图片 ingest、okia 实例与协议装配、会话生命周期、回合执行、停止、本地工具注册、MCP 发现、历史修复钩子、杂项状态）。
 
 **执行所有权分散**：
 
@@ -63,7 +63,7 @@
 >
 > 别跟我讲你没看过大厂的…… 它都是 `<T>`。用 Key 的话，就没有那么类型安全了。
 
-**已采纳的部分**：接口按能力切分 + reified 类型查找（`get<T>()`），已落地在 `agent-runtime/src/main/java/com/niki914/zafiro/service/ServiceRegistry.kt`。
+**已采纳的部分**：接口按能力切分 + reified 类型查找（`get<T>()`），已落地在 `agent-runtime/src/main/java/com/feSHt377/zafiro/service/ServiceRegistry.kt`。
 
 **已纠正的部分**：`get<T>()` 返回本进程对象，跨进程不成立。正确表述是「同一接口，每进程一份实现」：主进程实现是会话本体，宿主实现是 Binder 代理（仓内已有先例：`Entrance.kt:60` 用 `XIpcDomainSettingsStore(client)` 换掉 `XRepo` 的 store 实现）。
 
@@ -87,7 +87,7 @@ MVI 三条规则里第三条决定全部形状：**状态是唯一的输出通�
 ### 2.2 当前形状（`business:api`）
 
 ```
-business/api/src/main/java/com/niki914/zafiro/api/
+business/api/src/main/java/com/feSHt377/zafiro/api/
 ├── Agent.kt                        `Agent`：`conversation` / `draft` / `updateDraft` / `clearDraft` / `stream` / `load` / `discard` + `TurnStart`
 ├── AgentControl.kt                 `AgentControl`：`status` / `stop` / `addApprover` / `removeApprover`
 ├── Approver.kt                     `Approver`：`decide(request)`（消费方实现）
@@ -193,8 +193,8 @@ business/api/src/main/java/com/niki914/zafiro/api/
 |---|---|
 | 门面模块（10 个源文件，631 行；`compileClasspath` 只有 coroutines 与 stdlib） | `business/api/**`（PR #1，已合入 `dev`） |
 | 扫描结论与调用面映射 | `business/api/SCAN.md` |
-| 注册表（reified 类型查找） | `agent-runtime/src/main/java/com/niki914/zafiro/service/ServiceRegistry.kt` + 单测 |
-| 委托实现（`stream` / `stop` / `discard` + 草稿；非契约成员 `events` 作临时事件通道） | `app/src/main/java/com/niki914/zafiro/agent/LlmAgent.kt` |
+| 注册表（reified 类型查找） | `agent-runtime/src/main/java/com/feSHt377/zafiro/service/ServiceRegistry.kt` + 单测 |
+| 委托实现（`stream` / `stop` / `discard` + 草稿；非契约成员 `events` 作临时事件通道） | `app/src/main/java/com/feSHt377/zafiro/agent/LlmAgent.kt` |
 | 业务调用点接线（三处命令走门面，事件仍由 ViewModel 折叠） | `HomeChatState.kt` 的 `LlmHomeChatRuntime` |
 | ~~调用点接线（`HomeChatRuntime` 补 `currentConversation` / `keepScreenOn`，四处调用方改走注册表）~~ | 废弃：那是第二套门面，不再维护 |
 | debug 包 | `/Users/niki/.repo/android/agentic-nexus/app/build/outputs/apk/debug/app-debug.apk` |

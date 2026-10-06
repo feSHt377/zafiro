@@ -21,7 +21,7 @@ Your job when using this skill is to figure out where the user is in this proces
 
 ## Where skills live here
 
-- Skills live under `/data/data/com.niki914.zafiro/files/skills/`. A skill is a directory `<skills-root>/<id>/` holding a `SKILL.md`; the id may be one or two levels deep (`<repo>/<skill>`).
+- Skills live under `/data/data/com.fesht3.zafiro/files/skills/`. A skill is a directory `<skills-root>/<id>/` holding a `SKILL.md`; the id may be one or two levels deep (`<repo>/<skill>`).
 - If that path ever differs (debug build, fork), don't guess: the skills root is the parent of the `<dir>` that the skills list shows for any skill, and `load_skill` returns a skill's absolute dir.
 - Create and edit skills with python (or terminal): write the files directly under the skills root. There is no separate "skill tool" — this is a plain filesystem job.
 - A skill is discovered through its frontmatter (`name`, `description`) plus the SKILL.md body. Optional `scripts/`, `references/`, and `assets/` sit next to it.

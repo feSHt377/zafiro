@@ -5,16 +5,16 @@
 </div>
 
 <p align="center">
-  <img src="https://socialify.git.ci/niki914/zafiro/image?custom_description=Android+%C2%B7+Native+Agent+%C2%B7+Skills+%C2%B7+MCP%0APython+%2F+Phone-Use+%2F+Shell&description=1&font=Raleway&language=1&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjE4IDE4IDcyIDcyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI%2BCiAgPCEtLSDog4zmma%2FvvJrlrp3nn7Pok50gLS0%2BCiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEwOCIgaGVpZ2h0PSIxMDgiIGZpbGw9IiMwRjUyQkEiLz4KCiAgPGcgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPgogICAgPCEtLSDlt6bkvqflpJbova7lu5Pnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ0LDUyLjMgQzQ1LjQsNTMuNyA0NS40LDU1LjMgNDQsNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMiIvPgogICAgPCEtLSDlt6bkvqflhoXmo7Hnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ5LDUyLjMgQzQ5LjQsNTMuNyA0OS40LDU1LjMgNDksNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8IS0tIOWPs%2BS%2Bp%2BWGheajsee6vyAtLT4KICAgIDxwYXRoIGQ9Ik01NCwzNCBMNTksNTIuMyBDNTguNiw1My43IDU4LjYsNTUuMyA1OSw1Ni43IEw1NCw3NCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICAgIDwhLS0g5Y%2Bz5L6n5aSW6L2u5buT57q%2FIC0tPgogICAgPHBhdGggZD0iTTU0LDM0IEw2NCw1Mi4zIEM2Mi42LDUzLjcgNjIuNiw1NS4zIDY0LDU2LjcgTDU0LDc0IiBzdHJva2Utd2lkdGg9IjIiLz4KICAgIDwhLS0g5Ye56Zm35bGC5LiK5LiL55WM6Z2i55qE5rC05bmz5qiq57q%2FIC0tPgogICAgPHBhdGggZD0iTTQ0LDUyLjMgTDY0LDUyLjMiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8cGF0aCBkPSJNNDQsNTYuNyBMNjQsNTYuNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8L2c%2BCjwvc3ZnPgo%3D&name=1&owner=1&pattern=Diagonal+Stripes&theme=Auto" alt="zafiro"/>
+  <img src="https://socialify.git.ci/feSHt377/zafiro/image?custom_description=Android+%C2%B7+Native+Agent+%C2%B7+Skills+%C2%B7+MCP%0APython+%2F+Phone-Use+%2F+Shell&description=1&font=Raleway&language=1&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjE4IDE4IDcyIDcyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI%2BCiAgPCEtLSDog4zmma%2FvvJrlrp3nn7Pok50gLS0%2BCiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEwOCIgaGVpZ2h0PSIxMDgiIGZpbGw9IiMwRjUyQkEiLz4KCiAgPGcgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPgogICAgPCEtLSDlt6bkvqflpJbova7lu5Pnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ0LDUyLjMgQzQ1LjQsNTMuNyA0NS40LDU1LjMgNDQsNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMiIvPgogICAgPCEtLSDlt6bkvqflhoXmo7Hnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ5LDUyLjMgQzQ5LjQsNTMuNyA0OS40LDU1LjMgNDksNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8IS0tIOWPs%2BS%2Bp%2BWGheajsee6vyAtLT4KICAgIDxwYXRoIGQ9Ik01NCwzNCBMNTksNTIuMyBDNTguNiw1My43IDU4LjYsNTUuMyA1OSw1Ni43IEw1NCw3NCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICAgIDwhLS0g5Y%2Bz5L6n5aSW6L2u5buT57q%2FIC0tPgogICAgPHBhdGggZD0iTTU0LDM0IEw2NCw1Mi4zIEM2Mi42LDUzLjcgNjIuNiw1NS4zIDY0LDU2LjcgTDU0LDc0IiBzdHJva2Utd2lkdGg9IjIiLz4KICAgIDwhLS0g5Ye56Zm35bGC5LiK5LiL55WM6Z2i55qE5rC05bmz5qiq57q%2FIC0tPgogICAgPHBhdGggZD0iTTQ0LDUyLjMgTDY0LDUyLjMiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8cGF0aCBkPSJNNDQsNTYuNyBMNjQsNTYuNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8L2c%2BCjwvc3ZnPgo%3D&name=1&owner=1&pattern=Diagonal+Stripes&theme=Auto" alt="zafiro"/>
 </p>
 
 <p align="center">
-  <a href="https://github.com/niki914/zafiro"><img src="https://img.shields.io/github/stars/niki914/zafiro?label=stars" alt="stars"/></a>
-  <a href="https://deepwiki.com/niki914/zafiro"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"/></a>
-  <a href="https://github.com/niki914/zafiro/releases/latest"><img src="https://img.shields.io/github/v/release/niki914/zafiro?include_prereleases" alt="release"/></a>
-  <a href="https://github.com/niki914/zafiro/releases/latest"><img src="https://img.shields.io/github/downloads/niki914/zafiro/total" alt="downloads"/></a>
+  <a href="https://github.com/feSHt377/zafiro"><img src="https://img.shields.io/github/stars/feSHt377/zafiro?label=stars" alt="stars"/></a>
+  <a href="https://deepwiki.com/feSHt377/zafiro"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"/></a>
+  <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/v/release/feSHt377/zafiro?include_prereleases" alt="release"/></a>
+  <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/downloads/feSHt377/zafiro/total" alt="downloads"/></a>
   <img src="https://img.shields.io/badge/kotlin-68.1k-blue" alt="kotlin lines"/>
-  <a href="https://app.codacy.com/gh/niki914/zafiro/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/b4cadbe5d2d74e3885106562cbd9715b" alt="Codacy"/></a>
+  <a href="https://app.codacy.com/gh/feSHt377/zafiro/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/b4cadbe5d2d74e3885106562cbd9715b" alt="Codacy"/></a>
 </p>
 
 ## What is Zafiro?
@@ -24,10 +24,10 @@ Zafiro is an open-source intelligent Agent running on Android devices, with [BYO
 <table align="center">
 <tr>
 <tr>
-<td align="center"><img src="https://github.com/niki914/zafiro/blob/main/res/zafiro__phone_use.gif?raw=true" alt="Zafiro picks and plays music in Spotify via Phone-Use" width="135" height="300"/></td>
-<td align="center"><img src="https://github.com/niki914/zafiro/blob/main/res/zafiro__net_research.gif?raw=true" alt="Zafiro completes web research with headless web search and article reading via Python scripts" width="135" height="300"/></td>
-<td align="center"><img src="https://github.com/niki914/zafiro/blob/main/res/zafiro__native.gif?raw=true" alt="Zafiro downloads an APK from the web via Python and installs it with Root" width="135" height="300"/></td>
-<td align="center"><img src="https://github.com/niki914/zafiro/blob/main/res/zafiro__settings_screen.png?raw=true" alt="Zafiro settings screen" width="142" height="300"/></td>
+<td align="center"><img src="https://github.com/feSHt377/zafiro/blob/main/res/zafiro__phone_use.gif?raw=true" alt="Zafiro picks and plays music in Spotify via Phone-Use" width="135" height="300"/></td>
+<td align="center"><img src="https://github.com/feSHt377/zafiro/blob/main/res/zafiro__net_research.gif?raw=true" alt="Zafiro completes web research with headless web search and article reading via Python scripts" width="135" height="300"/></td>
+<td align="center"><img src="https://github.com/feSHt377/zafiro/blob/main/res/zafiro__native.gif?raw=true" alt="Zafiro downloads an APK from the web via Python and installs it with Root" width="135" height="300"/></td>
+<td align="center"><img src="https://github.com/feSHt377/zafiro/blob/main/res/zafiro__settings_screen.png?raw=true" alt="Zafiro settings screen" width="142" height="300"/></td>
 </tr>
 <tr>
 <td align="center">Device Control</td>
@@ -41,7 +41,7 @@ Zafiro is an open-source intelligent Agent running on Android devices, with [BYO
 > [!IMPORTANT]
 > Zafiro runs via [Shizuku](https://github.com/RikkaApps/Shizuku) — no Root required; Root users get the full experience.
 >
-> You can download a release from [Releases](https://github.com/niki914/zafiro/releases/latest), or choose to [build from source](#from-source).
+> You can download a release from [Releases](https://github.com/feSHt377/zafiro/releases/latest), or choose to [build from source](#from-source).
 
 ## Core Capabilities
 
@@ -90,9 +90,9 @@ Through the [LSPosed](https://github.com/lsposed/lsposed) framework, Zafiro can 
 
 <table align="center">
 <tr>
-<td align="center" valign="middle"><img src="https://github.com/niki914/zafiro/blob/main/res/breeno__github_mcp.gif?raw=true" alt="Zafiro voice assistant takeover demo" width="200"/></td>
-<td align="center" valign="middle"><img src="https://github.com/niki914/zafiro/blob/main/res/hyper__intro.gif?raw=true" alt="Zafiro voice assistant takeover demo" width="200"/></td>
-<td align="center" valign="middle"><img src="https://github.com/niki914/zafiro/blob/main/res/breeno__magisk.gif?raw=true" alt="Zafiro voice assistant takeover demo" width="200"/></td>
+<td align="center" valign="middle"><img src="https://github.com/feSHt377/zafiro/blob/main/res/breeno__github_mcp.gif?raw=true" alt="Zafiro voice assistant takeover demo" width="200"/></td>
+<td align="center" valign="middle"><img src="https://github.com/feSHt377/zafiro/blob/main/res/hyper__intro.gif?raw=true" alt="Zafiro voice assistant takeover demo" width="200"/></td>
+<td align="center" valign="middle"><img src="https://github.com/feSHt377/zafiro/blob/main/res/breeno__magisk.gif?raw=true" alt="Zafiro voice assistant takeover demo" width="200"/></td>
 </tr>
 </table>
 
@@ -188,7 +188,7 @@ Pull requests are welcome!
 ## Community
 
 - [Telegram](https://t.me/+ZPX2xtSl6RwyZGNl) — discuss, ask questions, give feedback
-- [GitHub Issues](https://github.com/niki914/zafiro/issues) — report bugs or request features
+- [GitHub Issues](https://github.com/feSHt377/zafiro/issues) — report bugs or request features
 - [Afdian](https://afdian.com/a/niki914) — support the developer
 
 When reporting an issue, please include as much detail as possible: phone model and Android version, system voice assistant and its version, Zafiro version, steps to reproduce, and screenshots or screen recordings.
@@ -198,5 +198,5 @@ When reporting an issue, please include as much detail as possible: phone model 
 MIT — see [LICENSE](LICENSE).
 
 <p align="center">
-  Made with ✨️ by <a href="https://github.com/niki914">niki914</a>
+  Made with ✨️ by <a href="https://github.com/niki914">niki914</a> & <a href="https://github.com/feSHt377">feSHt377</a>
 </p>

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="512" height="512">
-  <!-- 背景：宝石蓝 -->
-  <rect x="0" y="0" width="108" height="108" fill="#0F52BA"/>
+  <!-- 背景：粉紫 -->
+  <rect x="0" y="0" width="108" height="108" fill="#C026D3"/>
 
   <g stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <!-- 左侧外轮廓线 -->

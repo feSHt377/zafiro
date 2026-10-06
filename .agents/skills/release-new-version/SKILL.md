@@ -11,8 +11,8 @@ Repos involved:
 
 | Repo | Tag format | Release notes |
 |------|-----------|---------------|
-| `niki914/zafiro` (main, open source) | `v<code>-<name>` e.g. `v8-1.1.0` | Full bilingual notes |
-| `Xposed-Modules-Repo/com.niki914.nexus.agentic` (closed) | `<code>-<name>` e.g. `8-1.1.0` | Same feature entries, closing line points back to the main repo. **Optional — ask the user every time.** |
+| `feSHt377/zafiro` (main, open source) | `v<code>-<name>` e.g. `v8-1.1.0` | Full bilingual notes |
+| `Xposed-Modules-Repo/com.fesht3.zafiro` (closed) | `<code>-<name>` e.g. `8-1.1.0` | Same feature entries, closing line points back to the main repo. **Optional — ask the user every time.** |
 
 One APK, two notes. CI builds and signs the APK and creates the Release when a tag is pushed to the main repo. There is no CI in the Xposed repo — its release is a manual `gh` operation. Never build locally.
 
@@ -21,7 +21,7 @@ One APK, two notes. CI builds and signs the APK and creates the Release when a t
 Collect all of this before asking the user anything:
 
 1. **Local version**: read `versionCode` / `versionName` from `app/build.gradle.kts`.
-2. **Latest release baseline**: `gh release view -R niki914/zafiro` (returns the latest non-draft, non-prerelease release by default). Parse its tag `v<code>-<name>`.
+2. **Latest release baseline**: `gh release view -R feSHt377/zafiro` (returns the latest non-draft, non-prerelease release by default). Parse its tag `v<code>-<name>`.
 3. **Version string locations**: find every place the current version literal lives:
    ```bash
    rg -n '<current versionName>' -g '*.{md,kt,kts,txt,py}' .
@@ -30,7 +30,7 @@ Collect all of this before asking the user anything:
 4. **Changes since last release**: commits and merged PRs from the last release tag to `origin/main`:
    ```bash
    git log v<code>-<name>..origin/main --oneline --no-merges
-   gh pr list -R niki914/zafiro --state merged --limit 50 --json number,title --jq '.[] | "\(.number) \(.title)"'
+   gh pr list -R feSHt377/zafiro --state merged --limit 50 --json number,title --jq '.[] | "\(.number) \(.title)"'
    ```
 5. If local `versionCode`/`versionName` do not match the latest release tag: **stop** and ask the user how to proceed. Do not guess.
 
@@ -90,7 +90,7 @@ Confirm once more before anything irreversible. Then:
    ```
 6. Replace CI-generated release notes (they are a PR list) with the approved draft:
    ```bash
-   gh release edit <tag> -R niki914/zafiro --title "Release - <name>" --notes "<approved notes>"
+   gh release edit <tag> -R feSHt377/zafiro --title "Release - <name>" --notes "<approved notes>"
    ```
    CI generates the release title as the raw tag name (e.g. `v9-1.2.0`); the historical format is `Release - <name>` — pass `--title` explicitly or the wrong title stays.
 
@@ -108,18 +108,18 @@ Ask: "这次要发 Xposed 仓库吗？" If no, state clearly "本次未发 Xpose
 
 ```bash
 # download the APK from the main repo release
-gh release download <main-tag> -R niki914/zafiro -p "*.apk" --dir /tmp/
+gh release download <main-tag> -R feSHt377/zafiro -p "*.apk" --dir /tmp/
 
 # create the Xposed release
 gh release create <code>-<name> /tmp/<apk> \
-  -R Xposed-Modules-Repo/com.niki914.nexus.agentic \
+  -R Xposed-Modules-Repo/com.fesht3.zafiro \
   --title "Release - <name>" \
   --notes "<approved notes>"
 ```
 
 `gh` operates on the current repo's remote by default — external repos always need `-R owner/repo`, and the token must have write access there.
 
-The Xposed notes use the same feature entries, but the closing line is `项目已开源：https://github.com/niki914/zafiro` (and its English counterpart) instead of a contribution invitation.
+The Xposed notes use the same feature entries, but the closing line is `项目已开源：https://github.com/feSHt377/zafiro` (and its English counterpart) instead of a contribution invitation.
 
 ## Known pitfalls
 

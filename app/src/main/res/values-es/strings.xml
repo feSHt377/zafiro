@@ -167,7 +167,6 @@
     <string name="ui_settings_about_description">Conecte su asistente de voz a sus propios modelos</string>
     <string name="ui_settings_about_author_homepage">Sitio web del autor</string>
     <string name="ui_settings_about_github">GitHub</string>
-    <string name="ui_settings_about_afdian">Afdian</string>
     <string name="ui_settings_about_telegram">Grupo de Telegram</string>
     <string name="ui_settings_about_feedback_feature">Sugerir función</string>
     <string name="ui_settings_about_feedback_bug">Notificar error</string>

@@ -7,7 +7,7 @@ description: Install a skill from a public GitHub repository onto this device. U
 
 Install skills from public GitHub repositories. The whole job is: find the `SKILL.md`, download it and its files, put them under the skills root.
 
-**On this device the skills root is `/data/data/com.niki914.zafiro/files/skills/`.** Each skill is a subdirectory of it containing a `SKILL.md` — for example `/data/data/com.niki914.zafiro/files/skills/phone-use/SKILL.md`. You can create directories and write files there with python.
+**On this device the skills root is `/data/data/com.fesht3.zafiro/files/skills/`.** Each skill is a subdirectory of it containing a `SKILL.md` — for example `/data/data/com.fesht3.zafiro/files/skills/phone-use/SKILL.md`. You can create directories and write files there with python.
 
 ## Scope and boundaries
 
@@ -42,7 +42,7 @@ Download into a temporary directory first, never straight into the skills root.
 
 ## Install
 
-- Target: `/data/data/com.niki914.zafiro/files/skills/<id>/` (create it with python). If that path ever differs (debug build, fork), the skills root is the parent of the `<dir>` that the skills list shows for any skill, and `load_skill` returns a skill's absolute dir — but on a stock install it is the path above.
+- Target: `/data/data/com.fesht3.zafiro/files/skills/<id>/` (create it with python). If that path ever differs (debug build, fork), the skills root is the parent of the `<dir>` that the skills list shows for any skill, and `load_skill` returns a skill's absolute dir — but on a stock install it is the path above.
 - Pick the id:
   - One skill at the repo root → `<repo>` (lowercase, hyphens).
   - One skill inside a subdirectory → `<repo>/<skill-dir>` (two levels are valid).
@@ -59,7 +59,7 @@ Re-read what you installed and report the skill id, its name/description, the ab
 ## Worked shape
 
 ```
-root = "/data/data/com.niki914.zafiro/files/skills"
+root = "/data/data/com.fesht3.zafiro/files/skills"
 owner, repo = parse(url); ref = "main"
 tmp = tempfile.mkdtemp()
 download f"https://codeload.github.com/{owner}/{repo}/tar.gz/refs/heads/{ref}" -> tmp/repo.tar.gz

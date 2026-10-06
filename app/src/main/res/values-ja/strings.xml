@@ -166,7 +166,6 @@
     <string name="ui_settings_about_description">音声アシスタントに独自のモデル機能を連携</string>
     <string name="ui_settings_about_author_homepage">作者ホームページ</string>
     <string name="ui_settings_about_github">GitHub</string>
-    <string name="ui_settings_about_afdian">Afdian</string>
     <string name="ui_settings_about_telegram">Telegram グループ</string>
     <string name="ui_settings_about_feedback_feature">機能のリクエスト</string>
     <string name="ui_settings_about_feedback_bug">バグ報告</string>

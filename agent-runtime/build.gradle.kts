@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.niki914.zafiro"
+    namespace = "com.fesht3.zafiro"
     compileSdk = 37
 
     defaultConfig {

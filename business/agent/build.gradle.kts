@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.niki914.zafiro.business.agent"
+    namespace = "com.fesht3.zafiro.business.agent"
     compileSdk = 37
 
     defaultConfig {

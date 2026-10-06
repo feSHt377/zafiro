@@ -166,7 +166,6 @@
     <string name="ui_settings_about_description">讓語音助理用上你自己的模型能力</string>
     <string name="ui_settings_about_author_homepage">作者主頁</string>
     <string name="ui_settings_about_github">GitHub</string>
-    <string name="ui_settings_about_afdian">愛發電</string>
     <string name="ui_settings_about_telegram">Telegram 群組</string>
     <string name="ui_settings_about_feedback_feature">功能建議</string>
     <string name="ui_settings_about_feedback_bug">Bug 回報</string>
