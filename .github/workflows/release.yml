@@ -37,21 +37,38 @@ jobs:
 
       - name: Decode signing keystore
         env:
-          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
+          # Fail here, not 7 minutes later inside AGP's ASN.1 parser: an unset
+          # secret silently decodes to a 0-byte "keystore".
+          missing=()
+          for name in SIGNING_KEYSTORE_BASE64 SIGNING_STORE_PASSWORD SIGNING_KEY_ALIAS SIGNING_KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
           mkdir -p packing
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > packing/nexus_release.jks
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 -d > packing/nexus_release.jks
+          # Verifies the file really is a keystore, the password is right and the alias exists.
+          keytool -list -keystore packing/nexus_release.jks \
+            -storepass "$SIGNING_STORE_PASSWORD" -alias "$SIGNING_KEY_ALIAS" > /dev/null
 
       - name: Build signed release APK
         env:
-          STORE_PW: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          KEY_PW: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           ./gradlew assembleRelease --no-daemon --stacktrace \
-            -PRELEASE_STORE_PASSWORD="$STORE_PW" \
-            -PRELEASE_KEY_ALIAS="$KEY_ALIAS" \
-            -PRELEASE_KEY_PASSWORD="$KEY_PW"
+            -PRELEASE_STORE_PASSWORD="$SIGNING_STORE_PASSWORD" \
+            -PRELEASE_KEY_ALIAS="$SIGNING_KEY_ALIAS" \
+            -PRELEASE_KEY_PASSWORD="$SIGNING_KEY_PASSWORD"
 
       - name: Resolve version name
         id: version
