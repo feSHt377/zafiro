@@ -10,11 +10,9 @@
 
 <p align="center">
   <a href="https://github.com/feSHt377/zafiro"><img src="https://img.shields.io/github/stars/feSHt377/zafiro?label=stars" alt="stars"/></a>
-  <a href="https://deepwiki.com/feSHt377/zafiro"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"/></a>
   <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/v/release/feSHt377/zafiro?include_prereleases" alt="release"/></a>
   <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/downloads/feSHt377/zafiro/total" alt="downloads"/></a>
   <img src="https://img.shields.io/badge/kotlin-68.1k-blue" alt="kotlin lines"/>
-  <a href="https://app.codacy.com/gh/feSHt377/zafiro/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/b4cadbe5d2d74e3885106562cbd9715b" alt="Codacy"/></a>
 </p>
 
 ## What is Zafiro?
