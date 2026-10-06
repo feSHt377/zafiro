@@ -12,7 +12,7 @@
   <a href="https://github.com/niki914/zafiro"><img src="https://img.shields.io/github/stars/niki914/zafiro?label=stars" alt="stars"/></a>
   <a href="https://github.com/niki914/zafiro/releases/latest"><img src="https://img.shields.io/github/v/release/niki914/zafiro?include_prereleases" alt="release"/></a>
   <a href="https://github.com/niki914/zafiro/releases/latest"><img src="https://img.shields.io/github/downloads/niki914/zafiro/total" alt="downloads"/></a>
-  <img src="https://img.shields.io/badge/kotlin-68.1k-blue" alt="kotlin lines"/>
+  <img src="https://img.shields.io/badge/kotlin-71.7k-blue" alt="kotlin lines"/>
 </p>
 
 ## 什么是 Zafiro?
