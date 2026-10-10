@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-  <img src="https://socialify.git.ci/feSHt377/zafiro/image?custom_description=Android+%C2%B7+Native+Agent+%C2%B7+Skills+%C2%B7+MCP%0APython+%2F+Phone-Use+%2F+Shell&description=1&font=Raleway&language=1&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjE4IDE4IDcyIDcyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI%2BCiAgPCEtLSDog4zmma%2FvvJrlrp3nn7Pok50gLS0%2BCiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEwOCIgaGVpZ2h0PSIxMDgiIGZpbGw9IiMwRjUyQkEiLz4KCiAgPGcgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPgogICAgPCEtLSDlt6bkvqflpJbova7lu5Pnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ0LDUyLjMgQzQ1LjQsNTMuNyA0NS40LDU1LjMgNDQsNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMiIvPgogICAgPCEtLSDlt6bkvqflhoXmo7Hnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ5LDUyLjMgQzQ5LjQsNTMuNyA0OS40LDU1LjMgNDksNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8IS0tIOWPs%2BS%2Bp%2BWGheajsee6vyAtLT4KICAgIDxwYXRoIGQ9Ik01NCwzNCBMNTksNTIuMyBDNTguNiw1My43IDU4LjYsNTUuMyA1OSw1Ni43IEw1NCw3NCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICAgIDwhLS0g5Y%2Bz5L6n5aSW6L2u5buT57q%2FIC0tPgogICAgPHBhdGggZD0iTTU0LDM0IEw2NCw1Mi4zIEM2Mi42LDUzLjcgNjIuNiw1NS4zIDY0LDU2LjcgTDU0LDc0IiBzdHJva2Utd2lkdGg9IjIiLz4KICAgIDwhLS0g5Ye56Zm35bGC5LiK5LiL55WM6Z2i55qE5rC05bmz5qiq57q%2FIC0tPgogICAgPHBhdGggZD0iTTQ0LDUyLjMgTDY0LDUyLjMiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8cGF0aCBkPSJNNDQsNTYuNyBMNjQsNTYuNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8L2c%2BCjwvc3ZnPgo%3D&name=1&owner=1&pattern=Diagonal+Stripes&theme=Auto" alt="zafiro"/>
+  <img src="https://socialify.git.ci/feSHt377/zafiro/image?custom_description=Android+%C2%B7+Native+Agent+%C2%B7+Skills+%C2%B7+MCP%0APython+%2F+Phone-Use+%2F+Shell&description=1&font=Raleway&language=1&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjE4IDE4IDcyIDcyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI%2BCiAgPCEtLSDog4zmma%2FvvJrlrp3nn7Pok50gLS0%2BCiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjEwOCIgaGVpZ2h0PSIxMDgiIGZpbGw9IiMwRjUyQkEiLz4KCiAgPGcgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGZpbGw9Im5vbmUiPgogICAgPCEtLSDlt6bkvqflpJbova7lu5Pnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ0LDUyLjMgQzQ1LjQsNTMuNyA0NS40LDU1LjMgNDQsNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMiIvPgogICAgPCEtLSDlt6bkvqflhoXmo7Hnur8gLS0%2BCiAgICA8cGF0aCBkPSJNNTQsMzQgTDQ5LDUyLjMgQzQ5LjQsNTMuNyA0OS40LDU1LjMgNDksNTYuNyBMNTQsNzQiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8IS0tIOWPs%2BS%2Bp%2BWGheajsee6vyAtLT4KICAgIDxwYXRoIGQ9Ik01NCwzNCBMNTksNTIuMyBDNTguNiw1My43IDU4LjYsNTUuMyA1OSw1Ni43IEw1NCw3NCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICAgIDwhLS0g5Y%2Bz5L6n5aSW6L2u5buT57q%2FIC0tPgogICAgPHBhdGggZD0iTTU0LDM0IEw2NCw1Mi4zIEM2Mi42LDUzLjcgNjIuNiw1NS4zIDY0LDU2LjcgTDU0LDc0IiBzdHJva2Utd2lkdGg9IjIiLz4KICAgIDwhLS0g5Ye56Zm35bGC5LiK5LiL55WM6Z2i55qE5rC05bmz5qiq57q%2FIC0tPgogICAgPHBhdGggZD0iTTQ0LDUyLjMgTDY0LDUyLjMiIHN0cm9rZS13aWR0aD0iMS41Ii8%2BCiAgICA8cGF0aCBkPSJNNDQsNTYuNyBMNjQsNTYuNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8L2c%2BCjwvc3ZnPgo%3D&name=1&pattern=Diagonal+Stripes&theme=Auto" alt="zafiro"/>
 </p>
 
 <p align="center">
@@ -13,6 +13,12 @@
   <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/v/release/feSHt377/zafiro?include_prereleases" alt="release"/></a>
   <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/downloads/feSHt377/zafiro/total" alt="downloads"/></a>
   <img src="https://img.shields.io/badge/kotlin-71.7k-blue" alt="kotlin lines"/>
+</p>
+
+<p align="center">
+  <b>本仓库由 <a href="https://github.com/feSHt377">feSHt377</a> 维护并独立开发</b>
+  <br/>
+  分叉自 <a href="https://github.com/niki914/zafiro"><b>niki914/zafiro</b></a> — 原作者：<a href="https://github.com/niki914"><b>niki914</b></a>
 </p>
 
 ## 什么是 Zafiro?
