@@ -539,4 +539,6 @@
     <string name="agent_resident_action_stop">Stop</string>
     <string name="agent_resident_action_approve">Allow</string>
     <string name="agent_resident_action_decline">Deny</string>
+    <string name="ui_home_thinking_content">Thinking content</string>
+    <string name="ui_tool_display_finish_thinking">Finish thinking</string>
 </resources>

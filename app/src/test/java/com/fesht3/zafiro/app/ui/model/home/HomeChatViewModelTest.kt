@@ -5,6 +5,7 @@ import com.niki914.okia.conversation.SessionSnapshot
 import com.niki914.okia.message.AssistantMessage
 import com.niki914.okia.message.ContentBlock
 import com.niki914.okia.message.Message
+import com.niki914.okia.message.ToolCallOutcome
 import com.fesht3.zafiro.api.Agent
 import com.fesht3.zafiro.api.Approver
 import com.fesht3.zafiro.api.TurnStart
@@ -18,6 +19,9 @@ import com.fesht3.zafiro.api.model.ConversationTurn
 import com.fesht3.zafiro.api.model.Draft
 import com.fesht3.zafiro.api.model.DraftImage
 import com.fesht3.zafiro.api.model.TurnBlock
+import com.fesht3.zafiro.api.model.ToolInvocation
+import com.fesht3.zafiro.api.model.ToolOutcome
+import com.fesht3.zafiro.chat.agentic.buildin.impl.FinishThinkingBuiltin
 import com.fesht3.zafiro.business.agent.turnIdAt
 import com.fesht3.zafiro.app.conversation.ConversationFormatter
 import com.fesht3.zafiro.app.conversation.ConversationRecord
@@ -38,6 +42,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -133,6 +138,65 @@ class HomeChatViewModelTest {
         assertEquals("unfinished", state.input)
         assertEquals("hello", state.turns.single().userText)
         assertEquals(listOf(HomeChatBlock.Text("answer")), state.turns.single().blocks)
+    }
+
+    @Test
+    fun finishThinkingSeparatesAnswerAndRestoresCollapsedFromHistory() = runTest {
+        val fixture = fixture()
+        val working = listOf(
+            TurnBlock.Thinking("t0:0", "reasoning", isComplete = true),
+            TurnBlock.Text("t0:1", "Checking the information"),
+            TurnBlock.Tool("t0:2", ToolInvocation("search", "search", "Search"), ToolOutcome.Succeeded("found")),
+        )
+        val boundary = TurnBlock.Tool("t0:3", ToolInvocation("finish", FinishThinkingBuiltin.NAME, "Finish thinking", "{}"))
+        fun publish(control: TurnBlock.Tool, answer: String? = null) {
+            fixture.agent.publishConversation(Conversation(
+                id = ConversationId("live"),
+                turns = listOf(ConversationTurn(
+                    id = turnIdAt(0), userText = "question",
+                    blocks = working + control + answer?.let { listOf(TurnBlock.Text("t0:4", it)) }.orEmpty(),
+                )),
+            ))
+        }
+        publish(boundary)
+        advanceUntilIdle()
+        assertEquals(-1, fixture.vm.uiStateFlow.value.turns.single().thinkingEndIndex)
+        publish(boundary.copy(outcome = ToolOutcome.Failed("denied")))
+        advanceUntilIdle()
+        assertEquals(-1, fixture.vm.uiStateFlow.value.turns.single().thinkingEndIndex)
+
+        publish(boundary.copy(outcome = ToolOutcome.Succeeded("done")), "Final answer")
+        advanceUntilIdle()
+        val turn = fixture.vm.uiStateFlow.value.turns.single()
+        assertEquals(3, turn.thinkingEndIndex)
+        assertEquals(HomeChatBlock.Text("Checking the information"), turn.blocks[1])
+        assertEquals(listOf(HomeChatBlock.Text("Final answer")), turn.blocks.drop(turn.thinkingEndIndex + 1))
+        assertFalse("0_3" in fixture.vm.uiStateFlow.value.expandedThinking)
+        fixture.vm.sendIntent(HomeChatIntent.ToggleThinking(0, 3))
+        advanceUntilIdle()
+        assertTrue("0_3" in fixture.vm.uiStateFlow.value.expandedThinking)
+
+        val snapshot = snapshotOf(
+            Message.User(listOf(ContentBlock.Text("question"))),
+            Message.Assistant(AssistantMessage(listOf(
+                ContentBlock.Thinking("reasoning"), ContentBlock.Text("Checking the information"),
+                ContentBlock.ToolCall("search", "search", "{}"),
+            ))),
+            Message.ToolResult("search", "search", ToolCallOutcome.Success("found")),
+            Message.Assistant(AssistantMessage(listOf(ContentBlock.ToolCall("finish", FinishThinkingBuiltin.NAME, "{}")))),
+            Message.ToolResult("finish", FinishThinkingBuiltin.NAME, ToolCallOutcome.Success("done")),
+            Message.Assistant(AssistantMessage(listOf(ContentBlock.Text("Final answer")))),
+        )
+        val restored = Json.decodeFromString(SessionSnapshot.serializer(), Json.encodeToString(SessionSnapshot.serializer(), snapshot))
+        fixture.store.createRecord("saved-thinking", "question")
+        fixture.store.setSnapshot("saved-thinking", restored)
+        fixture.vm.sendIntent(HomeChatIntent.LoadConversation("saved-thinking"))
+        advanceUntilIdle()
+        val reloaded = fixture.vm.uiStateFlow.value.turns.single()
+        assertEquals(3, reloaded.thinkingEndIndex)
+        assertEquals(HomeChatBlock.Text("Checking the information"), reloaded.blocks[1])
+        assertEquals(HomeChatBlock.Text("Final answer"), reloaded.blocks.last())
+        assertFalse("0_3" in fixture.vm.uiStateFlow.value.expandedThinking)
     }
 
     @Test

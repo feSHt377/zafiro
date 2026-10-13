@@ -538,4 +538,6 @@
     <string name="agent_resident_action_stop">停止</string>
     <string name="agent_resident_action_approve">允许</string>
     <string name="agent_resident_action_decline">拒绝</string>
+    <string name="ui_home_thinking_content">思考内容</string>
+    <string name="ui_tool_display_finish_thinking">结束思考</string>
 </resources>

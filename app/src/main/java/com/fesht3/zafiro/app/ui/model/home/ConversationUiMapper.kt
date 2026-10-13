@@ -10,6 +10,7 @@ import com.fesht3.zafiro.api.model.TurnBlock
 import com.fesht3.zafiro.api.model.TurnFailureCode
 import com.fesht3.zafiro.app.ui.model.ToolPresentation
 import com.fesht3.zafiro.chat.LlmErrorCode
+import com.fesht3.zafiro.chat.agentic.buildin.impl.FinishThinkingBuiltin
 
 // Tool status is contract-derived; renderer keeps its existing three-state UI model.
 /**
@@ -81,6 +82,7 @@ private fun ToolInvocation.toStatus(outcome: ToolOutcome?): HomeToolStatus {
         displayNameRes = ToolPresentation.displayNameResOf(name),
         inputText = ToolPresentation.inputOf(name, argumentsJson),
         images = (outcome as? ToolOutcome.Succeeded)?.images.orEmpty().map { it.toHomeImage() },
+        endsThinking = name == FinishThinkingBuiltin.NAME,
     )
 }
 

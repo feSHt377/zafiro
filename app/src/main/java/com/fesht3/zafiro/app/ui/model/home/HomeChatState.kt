@@ -49,6 +49,7 @@ data class HomeToolStatus(
     val inputText: String? = null,
     /** 工具返回的图片引用（view_image / screenshot 等），path 指向 image_cache 落盘文件。 */
     val images: List<HomeChatImage> = emptyList(),
+    val endsThinking: Boolean = false,
 )
 
 sealed interface HomeChatBlock {
@@ -81,6 +82,12 @@ data class HomeChatTurn(
     val files: List<HomeChatFile> = emptyList(),
     val blocks: List<HomeChatBlock> = emptyList(),
 )
+
+/** Successful output-control calls separate the working content from the answer. */
+val HomeChatTurn.thinkingEndIndex: Int
+    get() = blocks.indexOfLast {
+        it is HomeChatBlock.Tool && it.status.endsThinking && it.status.state == HomeToolState.Succeeded
+    }
 
 /**
  * 用户消息附带的图片（落盘路径引用）。

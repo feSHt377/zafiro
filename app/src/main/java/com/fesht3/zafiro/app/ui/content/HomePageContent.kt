@@ -121,6 +121,7 @@ import com.fesht3.zafiro.app.ui.model.home.HomeChatTurn
 import com.fesht3.zafiro.app.ui.model.home.HomeChatUiState
 import com.fesht3.zafiro.app.ui.model.home.HomeChatViewModel
 import com.fesht3.zafiro.app.ui.model.home.MessageActionsDisplay
+import com.fesht3.zafiro.app.ui.model.home.thinkingEndIndex
 import com.fesht3.zafiro.app.ui.model.home.activeModelLabel
 import com.fesht3.zafiro.app.ui.model.home.HomeToolState
 import com.fesht3.zafiro.app.ui.model.home.HomeToolStatus
@@ -1271,166 +1272,193 @@ private fun HomeChatTurnItem(
                 ),
                 verticalArrangement = Arrangement.spacedBy(BlockSpacing),
             ) {
-                var blockIndex = 0
-                while (blockIndex < turn.blocks.size) {
-                    // Collect consecutive Tool blocks into a run
-                    val runStart = blockIndex
-                    var runEnd = runStart
-                    while (runEnd < turn.blocks.size && turn.blocks[runEnd] is HomeChatBlock.Tool) {
-                        runEnd++
-                    }
-                    val runSize = runEnd - runStart
-                    if (runSize >= 1) {
-                        val statuses = turn.blocks.subList(runStart, runEnd)
-                            .map { (it as HomeChatBlock.Tool).status }
-                        val runKey = "${turn.id}_${runStart}"
-                        val runResults = expandedToolResults
-                            .filter { it.startsWith("${runKey}_") }
-                            .mapNotNull { it.removePrefix("${runKey}_").toIntOrNull() }
-                            .toSet()
-                        ToolChain(
-                            tools = statuses,
-                            isExpanded = runKey in expandedToolRuns,
-                            expandedResults = runResults,
-                            onToggleRun = { onToggleToolRun(turn.id, runStart) },
-                            onToggleResult = { ti ->
-                                onToggleToolResult(turn.id, runStart, ti)
-                            },
-                            onContentClick = {
-                                onContentTap()
-                                if (!alwaysVisible && canToggleAction) {
-                                    onToggleActionRow(turn.id, ActionSource.Agent)
-                                }
-                            },
-                        )
-                        blockIndex = runEnd
-                    } else {
-                        when (val block = turn.blocks[blockIndex]) {
-                            is HomeChatBlock.Text -> {
-                                if (block.text.isNotBlank()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null,
-                                                onClick = {
-                                                    onContentTap()
-                                                    if (!alwaysVisible && canToggleAction) {
-                                                        onToggleActionRow(
-                                                            turn.id,
-                                                            ActionSource.Agent
-                                                        )
-                                                    }
-                                                },
-                                            ),
-                                    ) {
-                                        AssistantOutputText(
-                                            text = block.text,
-                                        )
-                                    }
-                                }
+                @Composable
+                fun renderBlocks(firstIndex: Int, endIndex: Int) {
+                    Column(verticalArrangement = Arrangement.spacedBy(BlockSpacing)) {
+                        var blockIndex = firstIndex
+                        while (blockIndex < endIndex) {
+                            val currentTool = (turn.blocks[blockIndex] as? HomeChatBlock.Tool)?.status
+                            if (currentTool?.endsThinking == true && currentTool.state == HomeToolState.Succeeded) {
+                                blockIndex++
+                                continue
                             }
-
-                            is HomeChatBlock.Error -> {
-                                val errorUi = toAssistantErrorUi(
-                                    message = block.message,
-                                    code = block.code,
-                                    attempts = block.attempts,
+                            // Collect consecutive Tool blocks into a run
+                            val runStart = blockIndex
+                            var runEnd = runStart
+                            while (runEnd < endIndex && turn.blocks[runEnd] is HomeChatBlock.Tool &&
+                                !(turn.blocks[runEnd] as HomeChatBlock.Tool).status.let {
+                                    it.endsThinking && it.state == HomeToolState.Succeeded
+                                }) {
+                                runEnd++
+                            }
+                            val runSize = runEnd - runStart
+                            if (runSize >= 1) {
+                                val statuses = turn.blocks.subList(runStart, runEnd)
+                                    .map { (it as HomeChatBlock.Tool).status }
+                                val runKey = "${turn.id}_${runStart}"
+                                val runResults = expandedToolResults
+                                    .filter { it.startsWith("${runKey}_") }
+                                    .mapNotNull { it.removePrefix("${runKey}_").toIntOrNull() }
+                                    .toSet()
+                                ToolChain(
+                                    tools = statuses,
+                                    isExpanded = runKey in expandedToolRuns,
+                                    expandedResults = runResults,
+                                    onToggleRun = { onToggleToolRun(turn.id, runStart) },
+                                    onToggleResult = { ti ->
+                                        onToggleToolResult(turn.id, runStart, ti)
+                                    },
+                                    onContentClick = {
+                                        onContentTap()
+                                        if (!alwaysVisible && canToggleAction) {
+                                            onToggleActionRow(turn.id, ActionSource.Agent)
+                                        }
+                                    },
                                 )
-                                CollapsibleBlock(
-                                    icon = Icons.Filled.ErrorOutline,
-                                    title = stringResource(errorUi.titleRes),
-                                    isExpanded = true,
-                                    onToggle = {},
-                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                    nonCollapsible = true,
-                                ) {
-                                    val body = errorUi.bodyRes?.let { stringResource(it) }
-                                        ?: errorUi.body.orEmpty()
-                                    if (body.isNotEmpty()) {
-                                        ToolResultText(
-                                            text = body,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
+                                blockIndex = runEnd
+                            } else {
+                                when (val block = turn.blocks[blockIndex]) {
+                                    is HomeChatBlock.Text -> {
+                                        if (block.text.isNotBlank()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = null,
+                                                        onClick = {
+                                                            onContentTap()
+                                                            if (!alwaysVisible && canToggleAction) {
+                                                                onToggleActionRow(
+                                                                    turn.id,
+                                                                    ActionSource.Agent
+                                                                )
+                                                            }
+                                                        },
+                                                    ),
+                                            ) {
+                                                AssistantOutputText(
+                                                    text = block.text,
+                                                )
+                                            }
+                                        }
                                     }
-                                }
-                            }
 
-                            is HomeChatBlock.Retrying -> {
-                                // 常展开、不可折叠（与 Error 块不同：retry 是进行中的转态，
-                                // 收起无意义）；重试成功即整个块消失
-                                CollapsibleBlock(
-                                    icon = Icons.Filled.Refresh,
-                                    title = stringResource(R.string.ui_home_retrying_title),
-                                    isExpanded = true,
-                                    onToggle = {},
-                                    isRunning = true,
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    nonCollapsible = true,
-                                ) {
-                                    val count = stringResource(
-                                        R.string.ui_home_retrying_attempt,
-                                        block.attempt,
-                                        block.maxAttempts,
-                                    )
-                                    ToolResultText(
-                                        text = if (block.reason.isBlank()) count
-                                        else "$count: ${block.reason.trim()}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-
-                            is HomeChatBlock.Thinking -> {
-                                // blockIndex 是 var，lambda 捕获按引用；先快照成 val 再进 lambda
-                                val blockIndexNow = blockIndex
-                                val thinkingKey = "${turn.id}_$blockIndexNow"
-                                val isThinkingExpanded = thinkingKey in expandedThinking
-                                CollapsibleBlock(
-                                    icon = ToolPresentation.Thinking,
-                                    title = "Thinking" + ToolPresentation
-                                        .previewOf(block.text)
-                                        ?.let { " · $it" }
-                                        .orEmpty(),
-                                    isExpanded = isThinkingExpanded,
-                                    onToggle = { onToggleThinking(turn.id, blockIndexNow) },
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null,
-                                                onClick = {
-                                                    onContentTap()
-                                                    if (!alwaysVisible && canToggleAction) {
-                                                        onToggleActionRow(
-                                                            turn.id,
-                                                            ActionSource.Agent
-                                                        )
-                                                    }
-                                                },
-                                            ),
-                                    ) {
-                                        ToolResultText(
-                                            text = block.text,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            // active 思考块展开时滚到底跟随；用户可手动滚动不锁
-                                            autoScrollToEnd = isThinkingExpanded && thinkingKey == activeThinkingKey,
+                                    is HomeChatBlock.Error -> {
+                                        val errorUi = toAssistantErrorUi(
+                                            message = block.message,
+                                            code = block.code,
+                                            attempts = block.attempts,
                                         )
+                                        CollapsibleBlock(
+                                            icon = Icons.Filled.ErrorOutline,
+                                            title = stringResource(errorUi.titleRes),
+                                            isExpanded = true,
+                                            onToggle = {},
+                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                            nonCollapsible = true,
+                                        ) {
+                                            val body = errorUi.bodyRes?.let { stringResource(it) }
+                                                ?: errorUi.body.orEmpty()
+                                            if (body.isNotEmpty()) {
+                                                ToolResultText(
+                                                    text = body,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        }
                                     }
-                                }
-                            }
 
-                            is HomeChatBlock.Tool -> {} // handled above
+                                    is HomeChatBlock.Retrying -> {
+                                        // 常展开、不可折叠（与 Error 块不同：retry 是进行中的转态，
+                                        // 收起无意义）；重试成功即整个块消失
+                                        CollapsibleBlock(
+                                            icon = Icons.Filled.Refresh,
+                                            title = stringResource(R.string.ui_home_retrying_title),
+                                            isExpanded = true,
+                                            onToggle = {},
+                                            isRunning = true,
+                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            nonCollapsible = true,
+                                        ) {
+                                            val count = stringResource(
+                                                R.string.ui_home_retrying_attempt,
+                                                block.attempt,
+                                                block.maxAttempts,
+                                            )
+                                            ToolResultText(
+                                                text = if (block.reason.isBlank()) count
+                                                else "$count: ${block.reason.trim()}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+
+                                    is HomeChatBlock.Thinking -> {
+                                        // blockIndex 是 var，lambda 捕获按引用；先快照成 val 再进 lambda
+                                        val blockIndexNow = blockIndex
+                                        val thinkingKey = "${turn.id}_$blockIndexNow"
+                                        val isThinkingExpanded = thinkingKey in expandedThinking
+                                        CollapsibleBlock(
+                                            icon = ToolPresentation.Thinking,
+                                            title = "Thinking" + ToolPresentation
+                                                .previewOf(block.text)
+                                                ?.let { " · $it" }
+                                                .orEmpty(),
+                                            isExpanded = isThinkingExpanded,
+                                            onToggle = { onToggleThinking(turn.id, blockIndexNow) },
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable(
+                                                        interactionSource = remember { MutableInteractionSource() },
+                                                        indication = null,
+                                                        onClick = {
+                                                            onContentTap()
+                                                            if (!alwaysVisible && canToggleAction) {
+                                                                onToggleActionRow(
+                                                                    turn.id,
+                                                                    ActionSource.Agent
+                                                                )
+                                                            }
+                                                        },
+                                                    ),
+                                            ) {
+                                                ToolResultText(
+                                                    text = block.text,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    // active 思考块展开时滚到底跟随；用户可手动滚动不锁
+                                                    autoScrollToEnd = isThinkingExpanded && thinkingKey == activeThinkingKey,
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    is HomeChatBlock.Tool -> {} // handled above
+                                }
+                                blockIndex++
+                            }
                         }
-                        blockIndex++
                     }
                 }
+
+                val thinkingEnd = turn.thinkingEndIndex
+                if (thinkingEnd > 0) {
+                    val thinkingKey = "${turn.id}_$thinkingEnd"
+                    CollapsibleBlock(
+                        icon = ToolPresentation.Thinking,
+                        title = stringResource(R.string.ui_home_thinking_content),
+                        isExpanded = thinkingKey in expandedThinking,
+                        onToggle = { onToggleThinking(turn.id, thinkingEnd) },
+                    ) {
+                        renderBlocks(0, thinkingEnd)
+                    }
+                }
+                renderBlocks(thinkingEnd + 1, turn.blocks.size)
             }
         }
 
@@ -1443,7 +1471,7 @@ private fun HomeChatTurnItem(
                 source = ActionSource.Agent,
                 display = actionsDisplay,
                 onCopy = {
-                    val text = turn.blocks
+                    val text = turn.blocks.drop(turn.thinkingEndIndex + 1)
                         .filterIsInstance<HomeChatBlock.Text>()
                         .joinToString("\n\n") { it.text }
                     copyText(text)

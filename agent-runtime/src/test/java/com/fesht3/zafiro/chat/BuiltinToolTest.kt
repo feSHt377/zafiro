@@ -43,6 +43,7 @@ class BuiltinToolTest {
             listOf(
                 "execute_python",
                 "find_installed_apps",
+                "finish_thinking",
                 "launch_app",
                 "load_skill",
                 "memory",

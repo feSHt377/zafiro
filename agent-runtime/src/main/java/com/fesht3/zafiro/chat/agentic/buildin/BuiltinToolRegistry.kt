@@ -2,6 +2,7 @@ package com.fesht3.zafiro.chat.agentic.buildin
 
 import com.fesht3.zafiro.chat.agentic.buildin.impl.ExecutePythonBuiltin
 import com.fesht3.zafiro.chat.agentic.buildin.impl.FindInstalledAppsBuiltin
+import com.fesht3.zafiro.chat.agentic.buildin.impl.FinishThinkingBuiltin
 import com.fesht3.zafiro.chat.agentic.buildin.impl.LaunchAppBuiltin
 import com.fesht3.zafiro.chat.agentic.buildin.impl.LoadSkillBuiltin
 import com.fesht3.zafiro.chat.agentic.buildin.impl.MemoryBuiltin
@@ -39,6 +40,7 @@ class BuiltinToolRegistry(
                 ScreenOperationShellBuiltin(),
                 ScreenshotBuiltin(),
                 ViewImageBuiltin(),
+                FinishThinkingBuiltin(),
             )
         )
     }

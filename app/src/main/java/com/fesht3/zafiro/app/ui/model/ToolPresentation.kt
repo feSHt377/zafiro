@@ -76,6 +76,7 @@ object ToolPresentation {
         "screen_operation_shell" -> R.string.ui_tool_display_screen_operation_shell
         "screenshot" -> R.string.ui_tool_display_screenshot
         "view_image" -> R.string.ui_tool_display_view_image
+        "finish_thinking" -> R.string.ui_tool_display_finish_thinking
         else -> null
     }
 
