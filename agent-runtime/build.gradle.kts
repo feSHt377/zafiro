@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.library") version "9.1.1"
     id("org.jetbrains.kotlin.plugin.serialization") version "2.2.0"
@@ -32,9 +34,18 @@ android {
     }
 }
 
+val localProperties = Properties().apply {
+    val propertiesFile = rootProject.file("local.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use { load(it) }
+    }
+}
+val pythonExecutable = localProperties.getProperty("python.executable")
+
 chaquopy {
     defaultConfig {
         version = "3.11"
+        pythonExecutable?.let { buildPython(it) }
         pip {
             install("requests==2.34.2")
             install("beautifulsoup4==4.15.0")
@@ -63,11 +74,11 @@ dependencies {
 
 val testPythonRuntime by tasks.registering(Exec::class) {
     group = "verification"
-    description = "Run runtime.py unit tests with python3"
+    description = "Run Python runtime unit tests"
     workingDir = file("${project.rootDir}")
     environment("PYTHONPATH", "agent-runtime/src/main/python")
     commandLine(
-        "python3", "-m", "unittest", "discover",
+        pythonExecutable ?: "python3", "-m", "unittest", "discover",
         "-s", "agent-runtime/src/test/python",
         "-v",
     )

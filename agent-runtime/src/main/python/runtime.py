@@ -132,7 +132,7 @@ def exec_code(code: str, timeout: float = 30.0) -> dict:
             for f in (out_f, err_f):
                 if f is not None:
                     try:
-                        f.flush()
+                        f.close()
                     except Exception:
                         pass
             sys.stdout.unbind()
@@ -144,8 +144,8 @@ def exec_code(code: str, timeout: float = 30.0) -> dict:
     t.join(timeout=timeout)
 
     if out_f is not None:
-        # 不 close：worker 线程可能仍在写（超时场景），flush 即可，
-        # 文件随 worker 结束自然完整；残留由 cacheDir 兜底回收。
+        # The worker owns the handles and closes them when execution ends.
+        # While it is still running, flush partial output for the caller.
         for f in (out_f, err_f):
             try:
                 f.flush()

@@ -139,14 +139,15 @@ fun getAdbPath(): String {
         ?: System.getenv("ANDROID_HOME")
         ?: System.getenv("ANDROID_SDK_ROOT")
         ?: File(System.getProperty("user.home"), "Library/Android/sdk").absolutePath
-    val adbFile = File(sdkDir, "platform-tools/adb")
+    val adbName = if (System.getProperty("os.name").startsWith("Windows")) "adb.exe" else "adb"
+    val adbFile = File(sdkDir, "platform-tools/$adbName")
     return if (adbFile.exists()) adbFile.absolutePath else "adb"
 }
 
 // 注册 adb reverse 任务
 val adbReverse = tasks.register("adbReverse") {
     group = "custom"
-    description = "Execute adb reverse for port 8788 and 1234"
+    description = "Forward local development ports to a connected Android device"
 
     doLast {
         val adbPath = getAdbPath()
@@ -197,14 +198,5 @@ val startServer = tasks.register("startServer") {
         if (!started) {
             println("Failed to start Python Server: python3 not found in common paths.")
         }
-    }
-}
-
-// 自动挂载
-tasks.configureEach {
-    // 只要是执行安装或者构建，就尝试运行这两个任务
-    if (name.startsWith("install") || name.startsWith("assemble")) {
-        dependsOn(adbReverse)
-//        dependsOn(startServer)
     }
 }

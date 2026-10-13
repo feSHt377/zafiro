@@ -123,6 +123,9 @@ Through the [LSPosed](https://github.com/lsposed/lsposed) framework, Zafiro can 
 
 ### Build from Source
 
+See [Development environment](docs/development.md) for SDK packages, Python 3.11,
+Windows setup and verification commands.
+
 ```bash
 ./gradlew assembleDebug
 ```

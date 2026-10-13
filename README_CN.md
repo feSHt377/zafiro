@@ -123,6 +123,9 @@ Zafiro 是一个运行在 Android 设备上的智能 Agent，完全开源，支�
 
 ### 从源码构建
 
+开发前请参阅[开发环境配置](docs/development.md)，补齐 SDK、Python 3.11，并配置本地路径。
+Windows 用户可通过 `scripts/dev-env.ps1` 在当前终端加载项目工具链。
+
 ```bash
 ./gradlew assembleDebug
 ```

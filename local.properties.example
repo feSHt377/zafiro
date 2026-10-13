@@ -1,0 +1,5 @@
+# Copy to local.properties. Use absolute paths with forward slashes.
+# Local machine paths must not be committed.
+sdk.dir=C:/Users/YOUR_NAME/AppData/Local/Android/Sdk
+java.home=C:/path/to/jdk-17
+python.executable=C:/path/to/Python311/python.exe

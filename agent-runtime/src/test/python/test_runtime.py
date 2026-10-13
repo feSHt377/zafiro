@@ -4,7 +4,9 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import unittest
+from unittest.mock import patch
 
 # Ensure the runtime module is importable from the source tree.
 # The Gradle task sets PYTHONPATH; when running locally the repo root
@@ -25,7 +27,26 @@ importlib.reload(runtime)
 class ExecCodeTest(unittest.TestCase):
     """Tests for runtime.exec_code() — file-based output capture."""
 
+    def setUp(self):
+        self.workers = []
+        thread_type = threading.Thread
+
+        def create_thread(*args, **kwargs):
+            worker = thread_type(*args, **kwargs)
+            self.workers.append(worker)
+            return worker
+
+        self.thread_patch = patch.object(runtime.threading, "Thread", create_thread)
+        self.thread_patch.start()
+        self.addCleanup(self.thread_patch.stop)
+
     def tearDown(self):
+        # A timeout returns before its worker finishes. Windows cannot delete
+        # the output file until that worker releases its file handles.
+        for worker in self.workers:
+            worker.join(timeout=3)
+            self.assertFalse(worker.is_alive())
+        self.thread_patch.stop()
         py_output = os.path.join(_CACHE_DIR, "py_output")
         if os.path.isdir(py_output):
             shutil.rmtree(py_output)
@@ -108,12 +129,7 @@ class ExecCodeTest(unittest.TestCase):
 
     def test_degraded_inline_when_write_fails(self):
         """cacheDir 不可写时降级 inline（尾部 1MB）。"""
-        cache = tempfile.mkdtemp(prefix="runtime_degraded_")
-        os.chmod(cache, 0o500)  # 不可写 → makedirs(py_output) 失败
-        old = os.environ["ZAFIRO_CACHE_DIR"]
-        try:
-            os.environ["ZAFIRO_CACHE_DIR"] = cache
-            importlib.reload(runtime)
+        with patch.object(runtime, "_new_output_file", side_effect=PermissionError("read-only cache")):
             result = runtime.exec_code(
                 'print("inline hello"); import sys; print("e1", file=sys.stderr)'
             )
@@ -121,11 +137,6 @@ class ExecCodeTest(unittest.TestCase):
             self.assertEqual("", result["file_path"])
             self.assertIn("inline hello", result["inline_text"])
             self.assertIn("e1", result["inline_text"])
-        finally:
-            os.environ["ZAFIRO_CACHE_DIR"] = old
-            os.chmod(cache, 0o755)
-            shutil.rmtree(cache)
-            importlib.reload(runtime)
 
     def test_concurrent_calls_write_separate_files(self):
         """并发 exec 的输出各自独立成文件（thread-local 路由）。"""
