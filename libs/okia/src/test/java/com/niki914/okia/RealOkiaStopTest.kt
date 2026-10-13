@@ -1,6 +1,7 @@
 package com.niki914.okia
 
 import com.niki914.okia.event.StopCause
+import com.niki914.okia.event.TurnEvent
 import com.niki914.okia.fake.FakeAgentLoop
 import com.niki914.okia.fake.FakeHttpEngine
 import com.niki914.okia.fake.FakeProtocolMapper
@@ -330,6 +331,77 @@ class RealOkiaStopTest {
         runCurrent()
         assertEquals(TurnResult.Completed(CompletionReason.Stop), send2.await())
         okia.close()
+    }
+
+    @Test
+    fun stopWaitsForCancelledSendCleanupBeforeClosing() = runTest {
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val finishCleanup = CompletableDeferred<Unit>()
+        val okia = openOkia(
+            FakeProtocolMapper(listOf(completed())),
+            loop = FakeAgentLoop { _, _ ->
+                withContext(NonCancellable) {
+                    cleanupStarted.complete(Unit)
+                    finishCleanup.await()
+                }
+                TurnResult.Completed(CompletionReason.Stop)
+            },
+            scope = testScope(testScheduler),
+        )
+        val sendJob = launch { okia.send("running conversation") { } }
+        runCurrent()
+        sendJob.cancel()
+        cleanupStarted.await()
+        runCurrent()
+
+        val closeJob = async {
+            runCatching {
+                okia.stop()
+                okia.close()
+            }
+        }
+        try {
+            runCurrent()
+            assertTrue("session must remain open while send cleans up", closeJob.isActive)
+        } finally {
+            finishCleanup.complete(Unit)
+        }
+        sendJob.join()
+        assertTrue(closeJob.await().isSuccess)
+    }
+
+    @Test
+    fun stopWaitsForAbortedEventBeforeClosing() = runTest {
+        val terminalStarted = CompletableDeferred<Unit>()
+        val finishTerminal = CompletableDeferred<Unit>()
+        val okia = openOkia(
+            FakeProtocolMapper(MutableSharedFlow<ProtocolEvent>()),
+            scope = testScope(testScheduler),
+        )
+        val sendJob = async {
+            okia.send("running conversation") { event ->
+                if (event is TurnEvent.TurnAborted) {
+                    terminalStarted.complete(Unit)
+                    finishTerminal.await()
+                }
+            }
+        }
+        runCurrent()
+        val closeJob = async {
+            runCatching {
+                okia.stop()
+                okia.close()
+            }
+        }
+        try {
+            terminalStarted.await()
+            runCurrent()
+            assertTrue("stop must wait for terminal event processing", closeJob.isActive)
+        } finally {
+            finishTerminal.complete(Unit)
+        }
+        assertEquals(TurnResult.Aborted(StopCause.UserStop), sendJob.await())
+        assertTrue(closeJob.await().isSuccess)
     }
 
     @Test

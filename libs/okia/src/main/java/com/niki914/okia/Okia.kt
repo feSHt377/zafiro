@@ -49,7 +49,7 @@ interface Okia {
         onEvent: suspend (TurnEvent) -> Unit
     ): TurnResult
 
-    // 取消当前回合；kill-then-stop（先杀工具资源再取消 job）
+    // 先杀工具资源再取消回合；等待终态处理和清理完成后返回，可随即关闭或重用会话。
     suspend fun stop(): Unit
 
     // 原地移动 leafId 到过去的条目，被跳过的尾部保留在树中。

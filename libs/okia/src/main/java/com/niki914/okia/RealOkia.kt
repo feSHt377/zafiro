@@ -21,6 +21,7 @@ import com.niki914.okia.tooling.ToolRegistry
 import com.niki914.okia.transport.HttpTimeouts
 import com.niki914.okia.transport.OkHttpEngine
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -128,6 +129,7 @@ internal class RealOkia(
         // 就位」之间插入。先提交 User 再启动 loop（不变量 §5.8：history 永远
         // 包含当前输入）。
         val turnJob: Deferred<TurnResult>
+        val turnFinished = CompletableDeferred<Unit>()
         mutex.withLock {
             check(!closed) { "Okia is closed" }
             check(activeTurn == null) { "another turn is already active" }
@@ -143,7 +145,7 @@ internal class RealOkia(
             val job = turnScope.async {
                 dependencies.agentLoop.run(request) { event -> handleEvent(event, onEvent) }
             }
-            activeTurn = ActiveTurn(job = job, startEntryId = turnStartEntry.id)
+            activeTurn = ActiveTurn(job = job, startEntryId = turnStartEntry.id, finished = turnFinished)
             turnJob = job
         }
 
@@ -174,27 +176,25 @@ internal class RealOkia(
             // 整个句柄置 null：stopCause / startEntryId 随旧句柄一起清除，不跨
             // 回合残留（CR3 #2）。
             activeTurn = null
+            turnFinished.complete(Unit)
         }
     }
 
     override suspend fun stop() {
-        // 取得活跃句柄 + 确认 job 仍活跃 + 写 stopCause，三者同一临界区原子完成。
-        // job 已完成但 send finally 尚未清句柄时（回合自然完成的短窗口）是
-        // no-op：不写陈旧 stopCause（CR3 #2，避免残留使下回合 stop 失效/取消误判）。
-        val turn = mutex.withLock {
-            val t = activeTurn
-            if (t == null || !t.job.isActive || t.stopCause != null) null
-            else {
-                activeTurn = t.copy(stopCause = StopCause.UserStop)
-                t
-            }
-        } ?: return
-        // G2：每回合至多一次 kill——stopCause 已在临界区去重，只有首个读到
-        // stopCause=null 的调用会写 UserStop 并走到取消。
-        // kill-then-stop（§5.11）：先 kill 工具资源（beforeStop，异常捕获不中止）
-        // 再取消回合 job（阻塞工具不吃协程取消，直接 cancel 会永久挂住）。
-        killDispatchedTools(turn.startEntryId)
-        turn.job.cancelAndJoin()
+        val (turn, shouldCancel) = mutex.withLock {
+            val current = activeTurn ?: return
+            val shouldCancel = current.job.isActive && current.stopCause == null
+            if (shouldCancel) activeTurn = current.copy(stopCause = StopCause.UserStop)
+            current to shouldCancel
+        }
+        if (shouldCancel) {
+            // Kill tool resources before cancelling a potentially blocking loop.
+            killDispatchedTools(turn.startEntryId)
+            turn.job.cancelAndJoin()
+        }
+        // send owns terminal events and releases the active-turn guard. Loop
+        // completion alone does not make the session safe to close or reuse.
+        turn.finished.await()
     }
 
     override suspend fun rewind(entryId: String) {
@@ -365,5 +365,6 @@ internal class RealOkia(
 private data class ActiveTurn(
     val job: Deferred<TurnResult>,
     val startEntryId: String?,
+    val finished: CompletableDeferred<Unit>,
     val stopCause: StopCause? = null
 )
