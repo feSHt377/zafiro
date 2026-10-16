@@ -56,6 +56,22 @@ object ConversationPersister {
                 }
             }
         }
+        scope.launch {
+            LLMController.allConversations.collect { snapshot ->
+                try {
+                    persistNow(snapshot)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logger.e(
+                        LOG_TAG,
+                        "persist allConversations failed sessionId=${snapshot.id} " +
+                                "errorType=${e::class.simpleName} message=${e.message}"
+                    )
+                    persistedCountBySession.remove(snapshot.id)
+                }
+            }
+        }
         Logger.i(LOG_TAG, "persister started")
     }
 

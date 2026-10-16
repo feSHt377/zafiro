@@ -541,4 +541,8 @@
     <string name="agent_resident_action_decline">Deny</string>
     <string name="ui_home_thinking_content">Thinking content</string>
     <string name="ui_tool_display_finish_thinking">Finish thinking</string>
+    <string name="ui_conversation_status_generating">Generating</string>
+    <string name="ui_conversation_status_thinking">Thinking</string>
+    <string name="ui_conversation_status_tool">Running tool</string>
+    <string name="ui_conversation_status_approval">Approval needed</string>
 </resources>

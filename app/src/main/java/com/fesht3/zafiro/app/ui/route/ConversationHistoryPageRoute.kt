@@ -2,6 +2,7 @@ package com.fesht3.zafiro.app.ui.route
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -11,6 +12,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
+import com.fesht3.zafiro.api.AgentControl
 import com.fesht3.zafiro.app.R
 import com.fesht3.zafiro.app.conversation.ConversationRepo
 import com.fesht3.zafiro.app.ui.PageBackHandler
@@ -20,6 +22,8 @@ import com.fesht3.zafiro.app.ui.content.ConversationHistoryPageContent
 import com.fesht3.zafiro.app.ui.content.ConversationHistoryUiState
 import com.fesht3.zafiro.app.ui.nav.TextTitle
 import com.fesht3.zafiro.app.ui.nav.TopBarActionSpec
+import com.fesht3.zafiro.service.requireService
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -66,9 +70,13 @@ internal fun ConversationHistoryPageRoute(
         uiState = loadConversationHistoryState()
     }
 
+    val agentControl = remember { runCatching { requireService<AgentControl>() }.getOrNull() }
+    val sessionStates by (agentControl?.sessionStates ?: MutableStateFlow(emptyMap())).collectAsState()
+
     ConversationHistoryPageContent(
         uiState = uiState,
         activeConversationId = activeConversationId,
+        sessionStates = sessionStates,
         onConversationClick = { id ->
             latestOnConversationSelected(id)
         },

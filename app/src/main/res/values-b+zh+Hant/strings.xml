@@ -525,4 +525,8 @@
     <string name="agent_resident_action_decline">拒絕</string>
     <string name="ui_home_thinking_content">思考內容</string>
     <string name="ui_tool_display_finish_thinking">結束思考</string>
+    <string name="ui_conversation_status_generating">生成中</string>
+    <string name="ui_conversation_status_thinking">思考中</string>
+    <string name="ui_conversation_status_tool">執行中</string>
+    <string name="ui_conversation_status_approval">待審批</string>
 </resources>

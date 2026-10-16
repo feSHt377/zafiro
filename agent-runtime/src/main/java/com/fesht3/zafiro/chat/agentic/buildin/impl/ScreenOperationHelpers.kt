@@ -65,3 +65,8 @@ internal fun failureWithCaptureError(
         append(captureError.message ?: "unknown error")
     },
 )
+
+/**
+ * 全局屏幕操作互斥锁：确保多会话并行时，屏幕操作（手势/点击/滑动）排队执行，防止冲突。
+ */
+internal val GlobalScreenOpMutex = kotlinx.coroutines.sync.Mutex()

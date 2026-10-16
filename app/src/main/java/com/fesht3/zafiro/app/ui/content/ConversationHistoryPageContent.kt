@@ -1,9 +1,16 @@
 package com.fesht3.zafiro.app.ui.content
 
 import android.text.format.DateUtils
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.automirrored.filled.Chat
@@ -49,6 +57,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fesht3.zafiro.api.model.AgentState
+import com.fesht3.zafiro.api.model.isRunning
 import com.niki914.uikit.infra.ConfirmationLiquidDialog
 import com.niki914.uikit.infra.LiquidDialog
 import com.niki914.uikit.infra.component.LiquidTextField
@@ -82,6 +92,7 @@ internal fun ConversationHistoryPageContent(
     onConversationDelete: (String) -> Unit,
     onConversationRename: ((String, String) -> Unit)? = null,
     onConversationFork: ((String) -> Unit)? = null,
+    sessionStates: Map<String, AgentState> = emptyMap(),
     modifier: Modifier = Modifier,
 ) {
     var sheetConversation by remember { mutableStateOf<ConversationSummary?>(null) }
@@ -109,6 +120,7 @@ internal fun ConversationHistoryPageContent(
         else -> ConversationHistoryListContent(
             conversations = uiState.conversations,
             activeConversationId = activeConversationId,
+            sessionStates = sessionStates,
             deleteErrorMessage = uiState.deleteErrorMessage,
             onConversationClick = onConversationClick,
             onConversationLongClick = { conversation ->
@@ -215,6 +227,7 @@ internal fun ConversationHistoryPageContent(
 private fun ConversationHistoryListContent(
     conversations: List<ConversationSummary>,
     activeConversationId: String?,
+    sessionStates: Map<String, AgentState>,
     deleteErrorMessage: String?,
     onConversationClick: (String) -> Unit,
     onConversationLongClick: (ConversationSummary) -> Unit,
@@ -267,6 +280,7 @@ private fun ConversationHistoryListContent(
                         ConversationHistoryItem(
                             conversation = conversation,
                             activeConversationId = activeConversationId,
+                            sessionState = sessionStates[conversation.id],
                             currentTimeMillis = currentTimeMillis,
                             onClick = { onConversationClick(conversation.id) },
                             onLongClick = { onConversationLongClick(conversation) },
@@ -299,6 +313,7 @@ private fun ConversationHistoryListContent(
 private fun ConversationHistoryItem(
     conversation: ConversationSummary,
     activeConversationId: String?,
+    sessionState: AgentState?,
     currentTimeMillis: Long,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -342,12 +357,18 @@ private fun ConversationHistoryItem(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 val timeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                if (originIcon != null || relativeTime.isNotBlank()) {
+                val isRunning = sessionState != null && sessionState.isRunning
+                if (isRunning || originIcon != null || relativeTime.isNotBlank()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(start = 8.dp),
                     ) {
-                        if (originIcon != null) {
+                        if (isRunning && sessionState != null) {
+                            ConversationStateIndicator(
+                                state = sessionState,
+                                modifier = Modifier.padding(end = 6.dp),
+                            )
+                        } else if (originIcon != null) {
                             Icon(
                                 imageVector = originIcon,
                                 contentDescription = null,
@@ -690,4 +711,123 @@ private fun ConversationHistoryInlineErrorText(
             .fillMaxWidth()
             .padding(horizontal = 4.dp),
     )
+}
+
+@Composable
+private fun ConversationStateIndicator(
+    state: AgentState,
+    modifier: Modifier = Modifier,
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val warningColor = MaterialTheme.colorScheme.error
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    when (state) {
+        is AgentState.Generating -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = modifier
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .graphicsLayer { this.alpha = alpha }
+                        .clip(CircleShape)
+                        .background(primaryColor)
+                )
+                Text(
+                    text = stringResource(R.string.ui_conversation_status_generating),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
+        is AgentState.Thinking -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = modifier
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .graphicsLayer { this.alpha = alpha }
+                        .clip(CircleShape)
+                        .background(primaryColor)
+                )
+                Text(
+                    text = stringResource(R.string.ui_conversation_status_thinking),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
+        is AgentState.ToolRunning -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = modifier
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .graphicsLayer { this.alpha = alpha }
+                        .clip(CircleShape)
+                        .background(primaryColor)
+                )
+                Text(
+                    text = state.label.ifBlank { stringResource(R.string.ui_conversation_status_tool) },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = primaryColor,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
+        is AgentState.WaitingApproval -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = modifier
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(warningColor)
+                )
+                Text(
+                    text = stringResource(R.string.ui_conversation_status_approval),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = warningColor,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+            }
+        }
+        is AgentState.Stopping -> {
+            Text(
+                text = stringResource(R.string.agent_resident_title_stopping),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = modifier,
+            )
+        }
+        is AgentState.Idle -> Unit
+    }
 }

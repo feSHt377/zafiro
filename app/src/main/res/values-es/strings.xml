@@ -541,4 +541,8 @@
     <string name="agent_resident_action_decline">Rechazar</string>
     <string name="ui_home_thinking_content">Contenido del razonamiento</string>
     <string name="ui_tool_display_finish_thinking">Finalizar razonamiento</string>
+    <string name="ui_conversation_status_generating">Generando</string>
+    <string name="ui_conversation_status_thinking">Pensando</string>
+    <string name="ui_conversation_status_tool">Ejecutando</string>
+    <string name="ui_conversation_status_approval">Aprobación pendiente</string>
 </resources>

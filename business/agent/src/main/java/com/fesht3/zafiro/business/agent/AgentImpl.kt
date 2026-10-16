@@ -21,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
@@ -30,25 +31,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
-// 存废：阶段 5 删除（委托实现：命令内部转发到 LLMController；架空完成后删除）
-
-/**
- * `Agent` 的实现侧。
- *
- * 本层真做的三件事：草稿（含待落盘图片）、折叠成 [conversation]（进程内唯一的
- * 折叠点）、会话载入。执行仍转发遗留 `LLMController`：`stream` / `stop` /
- * `discard` 是过渡转发，随 M10 删除。
- *
- * 依赖经服务注册表取（组合根只负责 install），不出现带参数的构造函数。
- *
- * 门禁是自有 [roundToken] / [roundActive]，与宿主 `AgentRuntimeService.activeTurn`
- * 的 CAS 互不可见（已知偏差，宿主切真源时合并）。
- */
+@OptIn(ExperimentalCoroutinesApi::class)
 object AgentImpl : Agent {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -64,61 +54,93 @@ object AgentImpl : Agent {
     /** ingest 管线统一转码，用户附件按 jpeg 声明。 */
     private const val USER_IMAGE_MIME = "image/jpeg"
 
-    private val draftFlow = MutableStateFlow(Draft())
-    private val conversationFlow = MutableStateFlow(Conversation())
+    internal class SessionContext(
+        var id: ConversationId?,
+        val conversationFlow: MutableStateFlow<Conversation> = MutableStateFlow(Conversation(id = id)),
+        val statusFlow: MutableStateFlow<AgentState> = MutableStateFlow(AgentState.Idle()),
+        val draftFlow: MutableStateFlow<Draft> = MutableStateFlow(Draft()),
+        var streamJob: Job? = null,
+        var roundToken: Int = 0,
+        val roundActive: MutableStateFlow<Boolean> = MutableStateFlow(false),
+        var reduced: Reduced = Reduced(Conversation(id = id)),
+        var reducedStatus: AgentStateReducer.ReducedStatus = AgentStateReducer.reset(),
+        var lastStatusEmitMs: Long = 0L,
+    )
 
-    private val statusFlow = MutableStateFlow<AgentState>(AgentState.Idle())
+    private val sessions = ConcurrentHashMap<String, SessionContext>()
+    private var unnamedSession = SessionContext(id = null)
+    private val currentSessionFlow = MutableStateFlow<SessionContext>(unnamedSession)
+
+    private val activeSessionStatesFlow = MutableStateFlow<Map<String, AgentState>>(emptyMap())
+    override val sessionStates: StateFlow<Map<String, AgentState>> = activeSessionStatesFlow.asStateFlow()
 
     /** 当前在途审批（显示用；结算靠 Approver.decide 返回值，本 flow 只进 status 投影）。 */
     private val approvalFlow = MutableStateFlow<ApprovalRequest?>(null)
 
-    private val roundActive = MutableStateFlow(false)
-    private var streamJob: Job? = null
-    private var roundToken = 0
+    override val conversation: StateFlow<Conversation> =
+        currentSessionFlow.flatMapLatest { it.conversationFlow }
+            .stateIn(scope, SharingStarted.Eagerly, Conversation())
 
-    /** 状态节流：同态纯文本增长的发射门。终态/换态/新段直通，不丢尾。 */
-    private var lastStatusEmitMs = 0L
+    override val draft: StateFlow<Draft> =
+        currentSessionFlow.flatMapLatest { it.draftFlow }
+            .stateIn(scope, SharingStarted.Eagerly, Draft())
 
-    /** 归约器辅助态：保留跨事件的思考槽与待补全工具占位项。 */
-    private var reduced = Reduced(Conversation())
-    private var reducedStatus = AgentStateReducer.reset()
-
-    override val conversation: StateFlow<Conversation> = conversationFlow.asStateFlow()
-    override val draft: StateFlow<Draft> = draftFlow.asStateFlow()
-
-    /**
-     * 对外状态：审批在途时 [AgentState.WaitingApproval] 覆盖引擎态。
-     * 串行工具链下同时只有一个在途请求；并发到达时首个胜出、其余随
-     * `decideApproval` 的 cancel 被丢弃（边缘业务，不做队列）。
-     */
     override val status: StateFlow<AgentState> =
-        combine(statusFlow, approvalFlow) { engine, pending ->
+        combine(
+            currentSessionFlow.flatMapLatest { it.statusFlow },
+            approvalFlow
+        ) { engine, pending ->
             pending?.let { AgentState.WaitingApproval(it) } ?: engine
         }.stateIn(scope, SharingStarted.Eagerly, AgentState.Idle())
 
     init {
-        // 草稿里的 Pending 项由实现侧落盘并归约成 Ready（契约的图片写入路径）
+        // 监听当前前台 session 的草稿 Pending 项，自动转码落盘
         scope.launch {
-            draftFlow.collect { draft ->
-                for (pending in draft.images.filterIsInstance<DraftImage.Pending>()) ingest(pending)
+            currentSessionFlow.flatMapLatest { it.draftFlow }.collect { draft ->
+                for (pending in draft.images.filterIsInstance<DraftImage.Pending>()) {
+                    ingest(pending)
+                }
             }
         }
     }
 
+    private fun currentSession(): SessionContext = currentSessionFlow.value
+
+    private fun updateActiveSessionState(sessionId: String?, state: AgentState) {
+        if (sessionId == null) return
+        val map = activeSessionStatesFlow.value.toMutableMap()
+        if (state is AgentState.Idle && state.lastOutcome == null) {
+            map.remove(sessionId)
+        } else {
+            map[sessionId] = state
+        }
+        activeSessionStatesFlow.value = map
+    }
+
     override fun updateDraft(transform: (Draft) -> Draft) {
-        draftFlow.value = transform(draftFlow.value)
+        val session = currentSession()
+        session.draftFlow.value = transform(session.draftFlow.value)
     }
 
     override fun clearDraft() {
-        draftFlow.value = Draft()
+        currentSession().draftFlow.value = Draft()
     }
 
-    override fun stream(): TurnStart {
-        val draft = draftFlow.value
+    override fun stream(): TurnStart = stream(currentSession())
+
+    override fun stream(id: ConversationId): TurnStart {
+        val session = sessions[id.value] ?: return TurnStart.Busy
+        return stream(session)
+    }
+
+    private fun stream(session: SessionContext): TurnStart {
+        val draft = session.draftFlow.value
         if (draft.text.isBlank() && draft.images.isEmpty() && draft.files.isEmpty()) {
             return TurnStart.DraftEmpty
         }
-        if (!roundActive.compareAndSet(expect = false, update = true)) return TurnStart.Busy
+        if (!session.roundActive.compareAndSet(expect = false, update = true)) {
+            return TurnStart.Busy
+        }
 
         val query = draft.text
         val images = draft.images.mapNotNull { image ->
@@ -127,45 +149,46 @@ object AgentImpl : Agent {
                 is DraftImage.Ready -> image.attachment
             }
         }
-        // 文件引用同一次归约里取走：不拷贝、没有异步过程，所以不等待任何东西
         val files = draft.files
-        // okia 边界上的形态（ContentBlock.Image）；契约侧叫 images，两者不是同一个列表
         val contentImages = images.map {
             ContentBlock.Image(it.path, it.mimeType ?: USER_IMAGE_MIME)
         }
-        // 发起即清空草稿：写入与清空在同一次归约里，覆盖窗口只有一帧
-        draftFlow.value = Draft()
-        reducedStatus = AgentStateReducer.startRound()
-        emitStatus(reducedStatus.status)
-        foldWith(ConversationReducer.startTurn(conversationFlow.value, query, images, files))
+        session.draftFlow.value = Draft()
+        session.reducedStatus = AgentStateReducer.startRound()
+        emitStatus(session, session.reducedStatus.status)
+        foldWith(session, ConversationReducer.startTurn(session.conversationFlow.value, query, images, files))
 
-        val token = ++roundToken
-        streamJob = scope.launch {
+        val token = ++session.roundToken
+        session.streamJob = scope.launch {
             try {
-                val conversationId = ensureConversation(query)
+                val conversationId = ensureConversation(session, query)
                 store().saveDraft(conversationId, "")
                 Logger.i(LOG_TAG, "round started conversationId=${conversationId.value} queryLength=${query.length}")
-                LLMController.stream(query = query, images = contentImages, files = files)
-                    .collect { event ->
-                        fold(event)
-                    }
+                LLMController.stream(
+                    query = query,
+                    images = contentImages,
+                    files = files,
+                    sessionId = conversationId.value,
+                ).collect { event ->
+                    fold(session, event)
+                }
             } catch (throwable: Throwable) {
                 if (throwable is CancellationException) throw throwable
                 Logger.e(LOG_TAG, "round failed errorType=${throwable::class.simpleName} message=${throwable.message}")
                 val message = throwable.message?.trim()?.takeIf(String::isNotEmpty)
-                if (message != null) fold(LlmStreamEvent.Error(message = message))
+                if (message != null) fold(session, LlmStreamEvent.Error(message = message))
                 else {
-                    reducedStatus = AgentStateReducer.interrupt(reducedStatus)
-                    emitStatus(reducedStatus.status)
+                    session.reducedStatus = AgentStateReducer.interrupt(session.reducedStatus)
+                    emitStatus(session, session.reducedStatus.status)
                 }
             } finally {
-                if (roundToken == token && statusFlow.value !is AgentState.Stopping) {
-                    if (statusFlow.value.isRunning) {
-                        reducedStatus = AgentStateReducer.interrupt(reducedStatus)
-                        emitStatus(reducedStatus.status)
+                if (session.roundToken == token && session.statusFlow.value !is AgentState.Stopping) {
+                    if (session.statusFlow.value.isRunning) {
+                        session.reducedStatus = AgentStateReducer.interrupt(session.reducedStatus)
+                        emitStatus(session, session.reducedStatus.status)
                     }
-                    streamJob = null
-                    roundActive.value = false
+                    session.streamJob = null
+                    session.roundActive.value = false
                 }
             }
         }
@@ -173,52 +196,65 @@ object AgentImpl : Agent {
     }
 
     override fun stop() {
-        if (!roundActive.value || statusFlow.value is AgentState.Stopping) return
+        stop(currentSession())
+    }
 
-        // 写回唯一真源 reduced（不是只改派生流）：只写 conversationFlow 的话，之后
-        // 任何一条 fold（如流终态守卫那条 Error）都会按旧快照重算整棵树，把刚标记为
-        // 打断的工具块复活成转圈。
-        foldWith(reduced.copy(conversation = ConversationReducer.interrupt(reduced.conversation)))
-        reducedStatus = AgentStateReducer.stopping(reducedStatus)
-        emitStatus(reducedStatus.status)
+    override fun stop(id: ConversationId) {
+        val session = sessions[id.value] ?: if (currentSession().id == id) currentSession() else null
+        session?.let { stop(it) }
+    }
 
-        val currentJob = streamJob
-        val token = roundToken
+    private fun stop(session: SessionContext) {
+        if (!session.roundActive.value || session.statusFlow.value is AgentState.Stopping) return
+
+        foldWith(session, session.reduced.copy(conversation = ConversationReducer.interrupt(session.reduced.conversation)))
+        session.reducedStatus = AgentStateReducer.stopping(session.reducedStatus)
+        emitStatus(session, session.reducedStatus.status)
+
+        val currentJob = session.streamJob
+        val token = session.roundToken
+        val sessionId = session.id?.value
         scope.launch {
             try {
-                LLMController.stopCurrentRound()
+                if (sessionId != null) {
+                    LLMController.stopSession(sessionId)
+                } else {
+                    LLMController.stopCurrentRound()
+                }
                 currentJob?.cancelAndJoin()
             } finally {
-                if (roundToken == token) {
-                    reducedStatus = AgentStateReducer.interrupt(reducedStatus)
-                    emitStatus(reducedStatus.status)
-                    streamJob = null
-                    roundActive.value = false
+                if (session.roundToken == token) {
+                    session.reducedStatus = AgentStateReducer.interrupt(session.reducedStatus)
+                    emitStatus(session, session.reducedStatus.status)
+                    session.streamJob = null
+                    session.roundActive.value = false
                 }
             }
         }
     }
 
     override fun discard() {
-        releaseRound()
-        reduced = Reduced(Conversation())
-        conversationFlow.value = Conversation()
-        draftFlow.value = Draft()
-        reducedStatus = AgentStateReducer.reset()
-        emitStatus(reducedStatus.status)
+        val prev = currentSession()
+        if (prev.roundActive.value) {
+            stop(prev)
+        }
+        unnamedSession = SessionContext(id = null)
+        currentSessionFlow.value = unnamedSession
         scope.launch {
-            // 调用点不再维持顺序：先停后关在实现内部（OKIA §8.7 #5）
-            LLMController.stopCurrentRound()
             LLMController.resetConversation()
         }
     }
 
     override suspend fun load(id: ConversationId) {
-        releaseRound()
-        reducedStatus = AgentStateReducer.reset()
-        emitStatus(reducedStatus.status)
-        // 先停（终止回合 + kill 工具资源）再换树：close 撞活跃回合由实现侧兜住
-        LLMController.stopCurrentRound()
+        // 关键重构：切换会话不再强行 stop 旧会话！后台会话继续并行执行并落盘。
+        val existing = sessions[id.value]
+        if (existing != null) {
+            currentSessionFlow.value = existing
+            store().setLastOpened(id)
+            Logger.i(LOG_TAG, "switched to existing session id=${id.value} isRunning=${existing.roundActive.value}")
+            return
+        }
+
         val stored = store().load(id)
         if (stored == null) {
             Logger.w(LOG_TAG, "load skipped notFound id=${id.value}")
@@ -226,9 +262,17 @@ object AgentImpl : Agent {
         }
         LLMController.openSession(stored.snapshot)
         store().setLastOpened(id)
-        reduced = Reduced(stored.conversation.copy(id = id))
-        conversationFlow.value = stored.conversation.copy(id = id)
-        draftFlow.value = Draft(text = stored.draftText)
+
+        val newSession = SessionContext(
+            id = id,
+            conversationFlow = MutableStateFlow(stored.conversation.copy(id = id)),
+            statusFlow = MutableStateFlow(AgentState.Idle()),
+            draftFlow = MutableStateFlow(Draft(text = stored.draftText)),
+            reduced = Reduced(stored.conversation.copy(id = id)),
+            reducedStatus = AgentStateReducer.reset(),
+        )
+        sessions[id.value] = newSession
+        currentSessionFlow.value = newSession
         Logger.i(LOG_TAG, "loaded id=${id.value} turns=${stored.conversation.turns.size}")
     }
 
@@ -244,10 +288,6 @@ object AgentImpl : Agent {
         approvers.remove(approver)
     }
 
-    /**
-     * 并发询问所有已注册的 Approver，首个非 Abstain 决策胜出，其余来源随之取消。
-     * 无 Approver 或全部弃权则 Deny。
-     */
     override suspend fun decideApproval(request: ApprovalRequest): ApprovalDecision = coroutineScope {
         val currentApprovers = approvers.toList()
         if (currentApprovers.isEmpty()) return@coroutineScope ApprovalDecision.Deny
@@ -266,7 +306,6 @@ object AgentImpl : Agent {
                 }
             }
         }
-        // 全部来源都结束仍无人结算（全弃权）→ 拒绝：弃权不是裁决，不能把请求悬在那里
         val allAbstained = launch {
             jobs.joinAll()
             deferred.complete(ApprovalDecision.Deny)
@@ -281,35 +320,21 @@ object AgentImpl : Agent {
         }
     }
 
-    /** 单测复位：进程内单例状态跨用例保留（同 `LLMController.resetForTest`）。 */
     internal fun clearForTest() {
-        releaseRound()
+        sessions.values.forEach { it.streamJob?.cancel() }
+        sessions.clear()
+        unnamedSession = SessionContext(id = null)
+        currentSessionFlow.value = unnamedSession
+        activeSessionStatesFlow.value = emptyMap()
         approvers.clear()
         approvalFlow.value = null
-        reduced = Reduced(Conversation())
-        conversationFlow.value = Conversation()
-        draftFlow.value = Draft()
-        reducedStatus = AgentStateReducer.reset()
-        statusFlow.value = reducedStatus.status
-        lastStatusEmitMs = 0L
     }
 
-    // ── 内部 ────────────────────────────────────────────────────────────────
-
-    /** 退役当前回合的门禁：旧回合的 finally 不再改它（token 已推进）。 */
-    private fun releaseRound() {
-        roundToken++
-        roundActive.value = false
-        streamJob?.cancel()
-        streamJob = null
-    }
-
-    /** 会话树 id 即 Room 会话 id（okia 惰性建实例，首轮发起时建档）。 */
-    private suspend fun ensureConversation(firstUserInput: String): ConversationId {
-        conversationFlow.value.id?.let { return it }
+    private suspend fun ensureConversation(session: SessionContext, firstUserInput: String): ConversationId {
+        session.id?.let { return it }
         val sessionId = ConversationId(LLMController.ensureSession())
-        // 建档可能已经由对话页做过：`createConversation` 的 DAO 冲突策略是 ABORT，
-        // 重复 insert 会抛异常并让整轮发不出去
+        session.id = sessionId
+        sessions[sessionId.value] = session
         if (store().exists(sessionId)) {
             Logger.i(LOG_TAG, "conversation reused id=${sessionId.value}")
         } else {
@@ -317,69 +342,70 @@ object AgentImpl : Agent {
             Logger.i(LOG_TAG, "conversation created id=${sessionId.value}")
         }
         store().setLastOpened(sessionId)
-        applySessionId(sessionId)
+        applySessionId(session, sessionId)
         return sessionId
     }
 
     internal fun applySessionId(sessionId: ConversationId) {
-        reduced = reduced.copy(conversation = reduced.conversation.copy(id = sessionId))
-        conversationFlow.value = reduced.conversation
+        applySessionId(currentSession(), sessionId)
     }
 
-    private fun fold(event: LlmStreamEvent) {
-        foldWith(ConversationReducer.reduce(reduced, event))
-        reducedStatus = AgentStateReducer.reduce(reducedStatus, event)
-        publishStatus(reducedStatus.status, event)
+    private fun applySessionId(session: SessionContext, sessionId: ConversationId) {
+        session.id = sessionId
+        session.reduced = session.reduced.copy(conversation = session.reduced.conversation.copy(id = sessionId))
+        session.conversationFlow.value = session.reduced.conversation
+        sessions[sessionId.value] = session
     }
 
-    /**
-     * 状态发射门：换态/终态/新段直通，同态纯文本增长按 [STATUS_TEXT_THROTTLE_MS] 节流。
-     *
-     * 节流只是少发射中间值：每次换态/终态都用 reducer 手里的全量值直通，
-     * 所以订阅方最终收敛无损（StateFlow 的 conflated 语义）。
-     */
-    private fun publishStatus(state: AgentState, event: LlmStreamEvent) {
+    private fun fold(session: SessionContext, event: LlmStreamEvent) {
+        foldWith(session, ConversationReducer.reduce(session.reduced, event))
+        session.reducedStatus = AgentStateReducer.reduce(session.reducedStatus, event)
+        publishStatus(session, session.reducedStatus.status, event)
+    }
+
+    private fun publishStatus(session: SessionContext, state: AgentState, event: LlmStreamEvent) {
         val direct = when {
-            state::class != statusFlow.value::class -> true
+            state::class != session.statusFlow.value::class -> true
             event is LlmStreamEvent.Completed || event is LlmStreamEvent.Error -> true
             event is LlmStreamEvent.TextDelta && event.isSegmentStart -> true
             else -> false
         }
         if (direct) {
-            statusFlow.value = state
-            lastStatusEmitMs = nowMs()
+            session.statusFlow.value = state
+            session.lastStatusEmitMs = nowMs()
+            updateActiveSessionState(session.id?.value, state)
             return
         }
         if (state is AgentState.Generating || state is AgentState.Thinking) {
-            if (nowMs() - lastStatusEmitMs >= STATUS_TEXT_THROTTLE_MS) {
-                statusFlow.value = state
-                lastStatusEmitMs = nowMs()
+            if (nowMs() - session.lastStatusEmitMs >= STATUS_TEXT_THROTTLE_MS) {
+                session.statusFlow.value = state
+                session.lastStatusEmitMs = nowMs()
+                updateActiveSessionState(session.id?.value, state)
             }
             return
         }
-        statusFlow.value = state
-        lastStatusEmitMs = nowMs()
+        session.statusFlow.value = state
+        session.lastStatusEmitMs = nowMs()
+        updateActiveSessionState(session.id?.value, state)
     }
 
-    /** 节流时钟（JVM 可测；500ms 粒度下 NTP 跳变可忽略），仅供 [publishStatus]/[emitStatus] 用。 */
     private fun nowMs(): Long = System.currentTimeMillis()
 
-    /** 状态机外事件（发起/停止/打断/重置）：换态直通，不走文本节流。 */
-    private fun emitStatus(state: AgentState) {
-        statusFlow.value = state
-        lastStatusEmitMs = nowMs()
+    private fun emitStatus(session: SessionContext, state: AgentState) {
+        session.statusFlow.value = state
+        session.lastStatusEmitMs = nowMs()
+        updateActiveSessionState(session.id?.value, state)
     }
 
     internal fun foldForTest(event: LlmStreamEvent) {
-        fold(event)
+        fold(currentSession(), event)
     }
 
-    private fun foldWith(reduced: Reduced) {
-        this.reduced = reduced
-        conversationFlow.value = reduced.conversation
+    private fun foldWith(session: SessionContext, reduced: Reduced) {
+        session.reduced = reduced
+        session.conversationFlow.value = reduced.conversation
     }
 
-    /** Pending 草稿项 → 落盘 → 归约成 Ready；失败即移除该项（消费方从状态看到它消失）。 */
     private suspend fun ingest(pending: DraftImage.Pending) {
         val ingested = runCatching { LLMController.ingestUserImage(pending.uri) }.getOrNull()
         updateDraft { current ->

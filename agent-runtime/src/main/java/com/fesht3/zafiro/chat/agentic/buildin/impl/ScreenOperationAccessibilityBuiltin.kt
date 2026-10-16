@@ -8,6 +8,7 @@ import com.fesht3.zafiro.chat.agentic.buildin.ScreenOperationError
 import com.fesht3.zafiro.chat.agentic.buildin.TextResultBuiltinTool
 import com.fesht3.zafiro.chat.agentic.buildin.TextToolResult
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.withLock
 
 /**
  * TextResultBuiltinTool for accessibility-service-based screen interaction.
@@ -44,7 +45,7 @@ class ScreenOperationAccessibilityBuiltin : TextResultBuiltinTool() {
 
     override val inputSchemaJson: String? get() = SCREEN_ACCESSIBILITY_SCHEMA
 
-    override suspend fun invokeText(request: BuiltinToolRequest): TextToolResult {
+    override suspend fun invokeText(request: BuiltinToolRequest): TextToolResult = GlobalScreenOpMutex.withLock {
         AccessibilityController.ensurePointerShown()
 
         val args = parseArguments(request.argumentsJson).getOrElse { error ->

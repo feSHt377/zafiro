@@ -82,6 +82,9 @@ interface Agent : AgentControl {
      */
     fun stream(): TurnStart
 
+    /** 在指定会话发起一轮。默认调用 [stream]。 */
+    fun stream(id: ConversationId): TurnStart = stream()
+
     /**
      * 载入一条已持久化的会话。
      *

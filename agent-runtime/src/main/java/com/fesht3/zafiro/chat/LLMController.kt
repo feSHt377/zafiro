@@ -164,6 +164,9 @@ object LLMController {
     private var runtimeState: RuntimeState? = null
     internal var okia: Okia? = null
     private var sessionProtocol: LlmProtocol? = null
+    internal val okiaSessions = java.util.concurrent.ConcurrentHashMap<String, Okia>()
+    private val allConversationsFlow = kotlinx.coroutines.flow.MutableSharedFlow<Conversation>(extraBufferCapacity = 64)
+    val allConversations: kotlinx.coroutines.flow.SharedFlow<Conversation> get() = allConversationsFlow
 
     // T3：当前会话快照统一流（持久化器观察它做消息级增量落盘，D3-8）。
     // OKIA conversation StateFlow 是每实例的（切会话 = 换实例 = 换引用），
@@ -202,7 +205,11 @@ object LLMController {
     }
 
     internal fun resetForTest() {
-        kotlinx.coroutines.runBlocking { okia?.close() }
+        kotlinx.coroutines.runBlocking {
+            okiaSessions.values.forEach { runCatching { it.close() } }
+            okia?.close()
+        }
+        okiaSessions.clear()
         okia = null
         sessionProtocol = null
         runtimeState = null
@@ -388,6 +395,7 @@ object LLMController {
         query: String,
         images: List<ContentBlock.Image> = emptyList(),
         files: List<FileRef> = emptyList(),
+        sessionId: String? = null,
     ): Flow<LlmStreamEvent> = channelFlow {
         try {
             val state = try {
@@ -472,9 +480,10 @@ object LLMController {
                 } else {
                     query
                 }
+                val sessionToUse = (sessionId?.let { okiaSessions[it] } ?: state.okia)
                 // 终态以返回值承载（TurnResult）；onEvent 只承担流式中间过程。
                 val result = try {
-                    state.okia.send(
+                    sessionToUse.send(
                         text = effectiveQuery,
                         images = images,
                         options = TurnOptions(systemPrompt = state.snapshot.config.finalSystemPrompt),
@@ -617,6 +626,12 @@ object LLMController {
         Logger.i(LOG_TAG, "stop round done")
     }
 
+    suspend fun stopSession(sessionId: String) {
+        Logger.i(LOG_TAG, "stop round requested for sessionId=$sessionId")
+        okiaSessions[sessionId]?.stop() ?: okia?.stop()
+        Logger.i(LOG_TAG, "stop round done for sessionId=$sessionId")
+    }
+
     // ── 会话管理（OKIA 实例生命周期） ──────────────────────────────────────────
 
     private suspend fun obtainSession(
@@ -625,25 +640,40 @@ object LLMController {
         restore: SessionSnapshot? = null,
         forceNew: Boolean = false,
     ): Okia {
+        val targetId = restore?.id
         if (!forceNew && restore == null) {
             okia?.takeIf { sessionProtocol == protocol }?.let { return it }
+        }
+        if (!forceNew && targetId != null) {
+            okiaSessions[targetId]?.takeIf { sessionProtocol == protocol }?.let {
+                okia = it
+                return it
+            }
         }
         // 协议切换（P1 #3）：关旧实例前导出当前树，restore 给新协议实例，
         // 会话 id + 历史跨 Provider 延续（okia §5.7：协议 id 不进会话数据）
         val carried = restore ?: okia?.takeIf { sessionProtocol != protocol }?.export()
-        okia?.close()
-        return openSession(protocol ?: LlmProtocol.Default, config, carried).also {
-            okia = it
+        if (forceNew && targetId != null) {
+            okiaSessions.remove(targetId)?.close()
+        }
+        return openSession(protocol ?: LlmProtocol.Default, config, carried).also { newSession ->
+            okia = newSession
             sessionProtocol = protocol
-            forwardConversation(it)
+            val newId = newSession.conversation.value.id
+            okiaSessions[newId] = newSession
+            forwardConversation(newSession)
         }
     }
 
-    /** 转发当前实例的 conversation StateFlow 到统一流（实例切换重发射）。 */
+    /** 转发实例的 conversation StateFlow 到统一流（实例切换重发射），并向 allConversations 广播。 */
     private fun forwardConversation(session: Okia) {
-        sessionForwardJob?.cancel()
-        sessionForwardJob = conversationForwardScope.launch {
-            session.conversation.collect { conversationFlow.value = it }
+        conversationForwardScope.launch {
+            session.conversation.collect {
+                if (okia === session) {
+                    conversationFlow.value = it
+                }
+                allConversationsFlow.emit(it)
+            }
         }
     }
 

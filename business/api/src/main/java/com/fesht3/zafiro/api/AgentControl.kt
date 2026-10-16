@@ -31,6 +31,13 @@ interface AgentControl {
     val status: StateFlow<AgentState>
 
     /**
+     * 各会话的实时运行状态映射表（Key: 会话 ID 字符串）。
+     * 处于 Generating / Thinking / ToolRunning / WaitingApproval 等状态的会话都会反映在此表，
+     * 便于会话历史列表等处实时展示每个会话的运行状态指示器。
+     */
+    val sessionStates: StateFlow<Map<String, AgentState>> get() = kotlinx.coroutines.flow.MutableStateFlow(emptyMap())
+
+    /**
      * 请求停止当前回合。无活跃回合时为空操作。
      *
      * 调用面：
@@ -46,6 +53,11 @@ interface AgentControl {
      * （`Idle`，`lastOutcome` = Interrupted）。
      */
     fun stop()
+
+    /** 停止指定会话的回合。默认调用 [stop]。 */
+    fun stop(id: com.fesht3.zafiro.api.model.ConversationId) {
+        stop()
+    }
 
     /**
      * 注册授权裁决者。同一实例重复注册为幂等。
