@@ -340,17 +340,35 @@ object LLMController {
 
     suspend fun snapshot(): LlmRuntimeSnapshot? = runtimeState?.snapshot
 
+    /** 创建一个全新的独立会话实例，并返回其全新树 id */
+    suspend fun createNewSession(): String {
+        if (runtimeState == null) {
+            refresh()
+        }
+        val current = runtimeState ?: error("runtimeState is null")
+        val newSession = openSession(
+            protocol = current.sessionProtocol ?: LlmProtocol.Default,
+            config = current.snapshot.config,
+            restore = null,
+        )
+        val id = newSession.conversation.value.id
+        okiaSessions[id] = newSession
+        okia = newSession
+        forwardConversation(newSession)
+        return id
+    }
+
     /**
      * 确保存在一个可用会话实例（无则建空实例）并返回其树 id（T3）。
      * 树 id == Room 会话 id：HomeChatState 拿它创建 Room 会话，
      * 之后 open(restore) 恢复时树 id 从快照 id 取（对齐）。
      */
     suspend fun ensureSession(): String {
-        if (okia == null) {
-            refresh()
+        val current = okia
+        if (current == null || current.conversation.value.entries.isNotEmpty()) {
+            return createNewSession()
         }
-        return okia?.conversation?.value?.id
-            ?: error("session not available")
+        return current.conversation.value.id
     }
 
     /**
@@ -599,16 +617,15 @@ object LLMController {
 
     suspend fun resetConversation() {
         Logger.i(LOG_TAG, "reset conversation requested")
-        // 丢弃当前会话实例（T3）：kill 工具资源 + close，不建新实例。
-        // 新会话实例由 ensureSession() 在第一次 send 时惰性创建
-        // （树 id 与 Room 会话 id 对齐）；kill 动作确保新会话不继承
-        // 上一个回合的工具状态（Binder 调用与 exec 立即结束）。
-        PyRuntime.kill()
-        TerminalSessionPool.closeAll()
-        okia?.close()
+        // 如果当前会话没有在活跃生成，则安全关闭；若仍有活跃回合则由其在后台自然完成，不抛异常闪退
+        val current = okia
+        if (current != null) {
+            runCatching { current.close() }.onFailure {
+                Logger.w(LOG_TAG, "close current okia on reset deferred: ${it.message}")
+            }
+        }
         okia = null
         sessionProtocol = null
-        conversationFlow.value = null
         Logger.i(LOG_TAG, "reset conversation done")
     }
 

@@ -234,14 +234,15 @@ object AgentImpl : Agent {
     }
 
     override fun discard() {
-        val prev = currentSession()
-        if (prev.roundActive.value) {
-            stop(prev)
-        }
+        // 开新会话：进行中的旧会话在后台继续安全执行，不打断、不强杀
         unnamedSession = SessionContext(id = null)
         currentSessionFlow.value = unnamedSession
         scope.launch {
-            LLMController.resetConversation()
+            runCatching {
+                LLMController.createNewSession()
+            }.onFailure {
+                Logger.w(LOG_TAG, "createNewSession on discard failed: ${it.message}")
+            }
         }
     }
 
@@ -332,15 +333,11 @@ object AgentImpl : Agent {
 
     private suspend fun ensureConversation(session: SessionContext, firstUserInput: String): ConversationId {
         session.id?.let { return it }
-        val sessionId = ConversationId(LLMController.ensureSession())
+        val sessionId = ConversationId(LLMController.createNewSession())
         session.id = sessionId
         sessions[sessionId.value] = session
-        if (store().exists(sessionId)) {
-            Logger.i(LOG_TAG, "conversation reused id=${sessionId.value}")
-        } else {
-            store().create(sessionId, firstUserInput)
-            Logger.i(LOG_TAG, "conversation created id=${sessionId.value}")
-        }
+        store().create(sessionId, firstUserInput)
+        Logger.i(LOG_TAG, "conversation created id=${sessionId.value}")
         store().setLastOpened(sessionId)
         applySessionId(session, sessionId)
         return sessionId
