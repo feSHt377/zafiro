@@ -365,7 +365,7 @@ object LLMController {
      */
     suspend fun ensureSession(): String {
         val current = okia
-        if (current == null || current.conversation.value.entries.isNotEmpty()) {
+        if (current == null || current.conversation.value.history.isNotEmpty()) {
             return createNewSession()
         }
         return current.conversation.value.id
