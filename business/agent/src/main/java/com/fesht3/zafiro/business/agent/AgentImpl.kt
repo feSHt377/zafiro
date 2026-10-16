@@ -63,7 +63,7 @@ object AgentImpl : Agent {
         var roundToken: Int = 0,
         val roundActive: MutableStateFlow<Boolean> = MutableStateFlow(false),
         var reduced: Reduced = Reduced(Conversation(id = id)),
-        var reducedStatus: AgentStateReducer.ReducedStatus = AgentStateReducer.reset(),
+        var reducedStatus: ReducedStatus = AgentStateReducer.reset(),
         var lastStatusEmitMs: Long = 0L,
     )
 
