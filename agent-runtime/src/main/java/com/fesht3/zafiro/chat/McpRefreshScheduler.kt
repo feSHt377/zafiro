@@ -53,11 +53,14 @@ internal class McpRefreshScheduler(private val scope: CoroutineScope) {
      * MCP 工具。这里补上同步路径，但只补一次：超时/失败都吞掉退回后台退避
      * （不在此重试、不上抛），所以服务器配错时只多一次首字延迟，不会每轮都等。
      *
-     * @return true = 工具已就绪（本轮可用）
+     * @return true = **本次**刚刷成功（本轮工具就绪）。签名早已成功时返回 false：
+     * 调用方据此决定是否再为新会话实例强制刷一次（#switch-refresh —— 新实例的
+     * 工具注册表是空的，签名去重会漏掉它；若这里返回 true，force 被吞掉，新实例
+     * 永远拿不到工具）。
      */
     suspend fun awaitFirstRound(session: Okia, signature: String, timeoutMs: Long): Boolean {
         desiredSignature = signature
-        if (signature == successSignature) return true
+        if (signature == successSignature) return false
         if (awaitedSignature == signature) return false
         // 后台已在刷：这次不重复连，也不占用「只等一次」的名额（下一轮还能等）
         if (!inFlight.compareAndSet(false, true)) return false

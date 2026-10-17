@@ -219,6 +219,11 @@ class McpRefreshSchedulerTest {
         scheduler.schedule(okia, "sig-A")
         runCurrent()
         assertEquals(1, okia.refreshCalls)
+
+        // 签名已成功时同步入口返回 false 且不再发请求：调用方据此仍可为新会话
+        // 实例 force 刷一次（#switch-refresh），不会被误判成「本轮已就绪」
+        assertFalse(scheduler.awaitFirstRound(okia, "sig-A", timeoutMs = 5_000))
+        assertEquals(1, okia.refreshCalls)
     }
 
     @Test

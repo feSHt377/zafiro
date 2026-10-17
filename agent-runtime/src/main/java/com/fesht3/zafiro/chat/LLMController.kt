@@ -212,8 +212,14 @@ object LLMController {
 
     internal fun resetForTest() {
         kotlinx.coroutines.runBlocking {
-            okiaSessions.values.forEach { runCatching { it.close() } }
-            okia?.close()
+            // 当前实例同时也在 okiaSessions 里：合并去重后各关一次。
+            // 直接分开关会让同一个实例被 close 两次，撞上
+            // RealOkia.close 的 check(!closed) → "Okia is already closed"
+            val current = okia
+            okia = null
+            (okiaSessions.values.toList() + listOfNotNull(current))
+                .distinct()
+                .forEach { runCatching { it.close() } }
         }
         okiaSessions.clear()
         okia = null
@@ -311,19 +317,19 @@ object LLMController {
         // tools 恒为空（MCP 永远「注入不进对话」的根因）。有启用的服务器时先
         // 就地刷一次（有超时），让本轮请求就带上 MCP 工具；超时/失败只记日志，
         // 交给下面的后台退避补齐，不阻塞后续回合。
-        if (resolvedTools.mcpServers.any { it.enabled }) {
+        val mcpReadyThisRound = resolvedTools.mcpServers.any { it.enabled } &&
             mcpRefreshScheduler.awaitFirstRound(
                 activeSession,
                 mcpSignature,
                 MCP_FIRST_ROUND_TIMEOUT_MS,
             )
-        }
         // 新实例（新对话/协议切换）预冷强制刷一次：签名去重会让新实例错过
-        // 首轮刷新，发消息时工具未就绪（#switch-refresh）；老实例仍按签名去重
+        // 首轮刷新，发消息时工具未就绪（#switch-refresh）；老实例仍按签名去重。
+        // 本轮刚同步刷成功时已就绪，再 force 只会把发现跑第二遍。
         mcpRefreshScheduler.schedule(
             activeSession,
             mcpSignature,
-            force = activeSession !== previousSession,
+            force = !mcpReadyThisRound && activeSession !== previousSession,
         )
         // 工具描述进入提示词（技能/记忆段依赖它）；MCP 工具段已删除
         // （D-T2B-2：线缆名 mcp__server__tool 已表达服务器归属）
