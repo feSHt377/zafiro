@@ -13,6 +13,7 @@ import com.niki914.okia.message.ContentBlock
 import com.fesht3.zafiro.chat.util.SilentLoggerRule
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -21,6 +22,8 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -199,5 +202,78 @@ class McpRefreshSchedulerTest {
 
         gate?.complete(Unit)
         runCurrent()
+    }
+
+    // ── 首轮同步就绪（awaitFirstRound）──────────────────────────────────
+
+    @Test
+    fun awaitFirstRound_finishesBeforeReturnSoToolsLandInSameTurn() = runTest {
+        val okia = FakeOkia(refreshResult = { McpRefreshResult(listOf("s1"), emptyList()) })
+        val scheduler = McpRefreshScheduler(backgroundScope)
+
+        // 返回时工具已注册（同回合请求能看到），且签名记为成功
+        assertTrue(scheduler.awaitFirstRound(okia, "sig-A", timeoutMs = 5_000))
+        assertEquals(1, okia.refreshCalls)
+
+        // 成功签名→后续 schedule 不再重复刷新（零网络开销）
+        scheduler.schedule(okia, "sig-A")
+        runCurrent()
+        assertEquals(1, okia.refreshCalls)
+    }
+
+    @Test
+    fun awaitFirstRound_waitsOnlyOncePerSignature() = runTest {
+        // 首次同步等待失败（网络）：不设成功签名
+        val okia = FakeOkia(refreshResult = { throw java.io.IOException("connection refused") })
+        val scheduler = McpRefreshScheduler(backgroundScope)
+
+        assertFalse(scheduler.awaitFirstRound(okia, "sig-A", timeoutMs = 5_000))
+        assertEquals(1, okia.refreshCalls)
+
+        // 同签名不再阻塞首字：直接放弃，交给后台退避
+        assertFalse(scheduler.awaitFirstRound(okia, "sig-A", timeoutMs = 5_000))
+        assertEquals(1, okia.refreshCalls)
+    }
+
+    @Test
+    fun awaitFirstRound_partialFailureFallsBackToBackgroundRetry() = runTest {
+        var call = 0
+        val okia = FakeOkia(
+            refreshResult = {
+                call++
+                if (call == 1) McpRefreshResult(listOf("s1"), listOf("s2")) // 部分失败
+                else McpRefreshResult(listOf("s1", "s2"), emptyList())
+            }
+        )
+        val scheduler = McpRefreshScheduler(backgroundScope)
+
+        // 部分失败不算就绪，也不设成功签名
+        assertFalse(scheduler.awaitFirstRound(okia, "sig-A", timeoutMs = 5_000))
+        assertEquals(1, okia.refreshCalls)
+
+        // 后台调度仍会补刷（失败未被永久跳过）
+        scheduler.schedule(okia, "sig-A")
+        runCurrent()
+        assertEquals(2, okia.refreshCalls)
+    }
+
+    @Test
+    fun awaitFirstRound_timeoutReturnsFalseAndKeepsTurnAlive() = runTest {
+        val okia = FakeOkia(
+            refreshResult = {
+                delay(30_000) // 比超时慢得多
+                McpRefreshResult(listOf("s1"), emptyList())
+            }
+        )
+        val scheduler = McpRefreshScheduler(backgroundScope)
+
+        // 超时不上抛：本轮照常发送
+        assertFalse(scheduler.awaitFirstRound(okia, "sig-A", timeoutMs = 5_000))
+        assertEquals(1, okia.refreshCalls)
+
+        // 超时同样不记成功签名 → 后续 schedule 会重新触发
+        scheduler.schedule(okia, "sig-A")
+        runCurrent()
+        assertEquals(2, okia.refreshCalls)
     }
 }

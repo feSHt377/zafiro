@@ -6,11 +6,15 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.Volatile
 
 /**
  * MCP 后台刷新调度（问题 4 修复）：签名状态机 + 失败退避重试。
+ *
+ * 两个入口：[awaitFirstRound]（同步，首轮用，保证本轮请求就带 MCP 工具，超时
+ * 即退回后台）与 [schedule]（后台，不阻塞回合，失败退避重试）。
  *
  * 签名三态分离：
  * - desired = 当前配置想要（schedule 每次更新）
@@ -37,6 +41,59 @@ internal class McpRefreshScheduler(private val scope: CoroutineScope) {
 
     private val inFlight = AtomicBoolean(false)
 
+    /** 已同步等待过一次的签名：同一配置只阻塞首字一次，避免每轮拖慢发送。 */
+    @Volatile
+    private var awaitedSignature: String? = null
+
+    /**
+     * 首轮就绪：该签名还没同步尝试过时，就地刷一次（有超时），让**本轮**请求
+     * 的 tools 里就有 MCP 工具。
+     *
+     * 后台 [schedule] 不 await，请求在工具注册前就构造完了，首条消息必然拿不到
+     * MCP 工具。这里补上同步路径，但只补一次：超时/失败都吞掉退回后台退避
+     * （不在此重试、不上抛），所以服务器配错时只多一次首字延迟，不会每轮都等。
+     *
+     * @return true = 工具已就绪（本轮可用）
+     */
+    suspend fun awaitFirstRound(session: Okia, signature: String, timeoutMs: Long): Boolean {
+        desiredSignature = signature
+        if (signature == successSignature) return true
+        if (awaitedSignature == signature) return false
+        // 后台已在刷：这次不重复连，也不占用「只等一次」的名额（下一轮还能等）
+        if (!inFlight.compareAndSet(false, true)) return false
+        awaitedSignature = signature
+        val startedAtMs = System.currentTimeMillis()
+        val result = try {
+            withTimeoutOrNull(timeoutMs) { session.refreshMcpTools() }
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+            Logger.e(
+                logTag,
+                "mcp first round failed elapsedMs=${System.currentTimeMillis() - startedAtMs} " +
+                        "errorType=${throwable::class.simpleName} message=${throwable.message}"
+            )
+            null
+        } finally {
+            inFlight.set(false)
+        }
+        if (result == null || result.failedServers.isNotEmpty()) {
+            Logger.e(
+                logTag,
+                "mcp first round not ready elapsedMs=${System.currentTimeMillis() - startedAtMs} " +
+                        "timedOut=${result == null} " +
+                        "failed=${result?.failedServers?.joinToString(",") { "\"$it\"" }.orEmpty()}"
+            )
+            return false
+        }
+        successSignature = signature
+        Logger.i(
+            logTag,
+            "mcp first round done elapsedMs=${System.currentTimeMillis() - startedAtMs} " +
+                    "refreshed=${result.refreshedServers.joinToString(",") { "\"$it\"" }}"
+        )
+        return true
+    }
+
     /** 签名变化才起后台刷新（不 await，不阻塞回合）；force = 跳过签名去重
      *  强制刷一次（会话切换预热，#switch-refresh）。in-flight 仍去重。 */
     fun schedule(session: Okia, signature: String, force: Boolean = false) {
@@ -49,6 +106,7 @@ internal class McpRefreshScheduler(private val scope: CoroutineScope) {
     fun reset() {
         desiredSignature = null
         successSignature = null
+        awaitedSignature = null
         inFlight.set(false)
     }
 

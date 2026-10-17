@@ -78,6 +78,12 @@ object LLMController {
     private const val LOG_TAG = "niki914_zafiro_LLMController"
     internal const val NO_IDLE_TIMEOUT_SECONDS = Long.MAX_VALUE / 1000
 
+    /**
+     * 首轮 MCP 发现的同步等待上限：只在每条配置签名的首轮生效一次，超时即
+     * 放弃（本轮照常发送，工具由后台退避补齐），避免配错服务器永久拖慢首字。
+     */
+    private const val MCP_FIRST_ROUND_TIMEOUT_MS = 5_000L
+
     /** 孤儿工具调用兜底文案：只说结果缺失与疑似异常中断，不断言进程被杀。 */
     private const val TOOL_RESULT_MISSING =
         "Tool result missing: execution may have been interrupted abnormally."
@@ -298,9 +304,20 @@ object LLMController {
         // T2a：本地工具注册（enabled 集合全量重建；inline 回合内工具由
         // registerCustomPyToolNow 注册，随下次 refresh 由持久化版本接管）
         syncLocalTools(resolvedTools)
-        // T2b：MCP 发现（方案 B，D-T2B-3）：签名变化才起后台刷新，不 await
-        // （不阻塞回合）；初始化时签名 null → 首次天然触发（启动 eager）
+        // T2b：MCP 发现（方案 B，D-T2B-3）：签名变化才刷；初始化时签名 null →
+        // 首次天然触发（启动 eager）
         val mcpSignature = mcpServersSignature(resolvedTools.mcpServers)
+        // 首轮就绪：后台调度不 await，请求在工具注册前就构造完了，首条消息的
+        // tools 恒为空（MCP 永远「注入不进对话」的根因）。有启用的服务器时先
+        // 就地刷一次（有超时），让本轮请求就带上 MCP 工具；超时/失败只记日志，
+        // 交给下面的后台退避补齐，不阻塞后续回合。
+        if (resolvedTools.mcpServers.any { it.enabled }) {
+            mcpRefreshScheduler.awaitFirstRound(
+                activeSession,
+                mcpSignature,
+                MCP_FIRST_ROUND_TIMEOUT_MS,
+            )
+        }
         // 新实例（新对话/协议切换）预冷强制刷一次：签名去重会让新实例错过
         // 首轮刷新，发消息时工具未就绪（#switch-refresh）；老实例仍按签名去重
         mcpRefreshScheduler.schedule(
