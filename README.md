@@ -12,7 +12,7 @@
   <a href="https://github.com/feSHt377/zafiro"><img src="https://img.shields.io/github/stars/feSHt377/zafiro?label=stars" alt="stars"/></a>
   <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/v/release/feSHt377/zafiro?include_prereleases" alt="release"/></a>
   <a href="https://github.com/feSHt377/zafiro/releases/latest"><img src="https://img.shields.io/github/downloads/feSHt377/zafiro/total" alt="downloads"/></a>
-  <img src="https://img.shields.io/badge/kotlin-19.7k-blue" alt="kotlin lines"/>
+  <img src="https://img.shields.io/badge/kotlin-72.2k-blue" alt="kotlin lines"/>
 </p>
 
 <p align="center">
